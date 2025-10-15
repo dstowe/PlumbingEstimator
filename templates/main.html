@@ -33,7 +33,15 @@
         .main { flex: 1; display: flex; flex-direction: column; }
         .toolbar { background: #455a64; color: white; padding: 15px 20px; display: flex; gap: 10px; align-items: center; }
         .content { flex: 1; display: flex; overflow: hidden; }
-        .canvas-area { flex: 1; background: #ecf0f1; position: relative; overflow: auto; }
+        .canvas-area { 
+            flex: 1; 
+            background: #ecf0f1; 
+            position: relative; 
+            overflow: auto;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
         .properties { width: 250px; background: white; border-left: 1px solid #ddd; padding: 20px; overflow-y: auto; }
         
         button { 
@@ -62,15 +70,15 @@
         .project-item:hover { background: #546e7a; }
         .project-item.active { background: #3498db; }
         
-        .drawing-item {
+        select {
+            width: 100%;
             padding: 8px;
-            background: #546e7a;
-            margin: 5px 0;
-            border-radius: 3px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background: white;
             font-size: 14px;
-            cursor: pointer;
+            margin: 5px 0;
         }
-        .drawing-item:hover { background: #607d8b; }
         
         input[type="text"], textarea {
             width: 100%;
@@ -81,11 +89,17 @@
         }
         
         #canvas { 
-            max-width: 100%; 
-            height: auto;
             display: block;
             margin: 20px auto;
             box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            cursor: default;
+            image-rendering: crisp-edges;
+            image-rendering: -moz-crisp-edges;
+            image-rendering: pixelated;
+        }
+        
+        #canvas:active {
+            cursor: grabbing;
         }
         
         .section { margin-bottom: 20px; }
@@ -118,6 +132,57 @@
             border-radius: 8px;
         }
         .modal-content h2 { margin-bottom: 20px; }
+        
+        /* Context Menu Styles */
+        .context-menu {
+            display: none;
+            position: fixed;
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            z-index: 10000;
+            min-width: 150px;
+        }
+        .context-menu-item {
+            padding: 10px 15px;
+            cursor: pointer;
+            font-size: 14px;
+            color: #2c3e50;
+        }
+        .context-menu-item:hover {
+            background: #ecf0f1;
+        }
+        .context-menu-item.danger {
+            color: #e74c3c;
+        }
+        .context-menu-divider {
+            height: 1px;
+            background: #ecf0f1;
+            margin: 5px 0;
+        }
+        
+        .upload-progress {
+            margin-top: 10px;
+            padding: 10px;
+            background: #ecf0f1;
+            border-radius: 4px;
+            font-size: 13px;
+            display: none;
+        }
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background: #ddd;
+            border-radius: 10px;
+            overflow: hidden;
+            margin-top: 5px;
+        }
+        .progress-fill {
+            height: 100%;
+            background: #3498db;
+            transition: width 0.3s;
+        }
     </style>
 </head>
 <body>
@@ -141,16 +206,17 @@
         
         <div class="main">
             <div class="toolbar">
-                <button onclick="uploadDrawing()">📄 Upload Drawing</button>
+                <button onclick="uploadDrawing()">📄 Upload Drawings</button>
                 <button onclick="processCurrentDrawing()" class="secondary">🔍 Auto-Detect</button>
                 <button onclick="exportTakeoff()" class="secondary">📊 Export Takeoff</button>
+                <button onclick="resetZoom()" class="secondary" title="Reset zoom to 100%">🔍 Reset Zoom</button>
                 <span style="margin-left: auto;" id="currentProject">No project selected</span>
             </div>
             
             <div class="content">
                 <div class="canvas-area">
                     <canvas id="canvas"></canvas>
-                    <div id="canvasInstructions" style="padding: 40px; text-align: center; color: #7f8c8d;">
+                    <div id="canvasInstructions" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; color: #7f8c8d;">
                         <h2>Plumbing Estimator</h2>
                         <p style="margin-top: 20px;">Select or create a project to begin</p>
                     </div>
@@ -159,7 +225,15 @@
                 <div class="properties">
                     <div class="section">
                         <h3>DRAWINGS</h3>
-                        <div id="drawingList"></div>
+                        <select id="drawingSelect" onchange="handleDrawingChange()" oncontextmenu="showDrawingContextMenu(event)">
+                            <option value="">No drawings</option>
+                        </select>
+                        <div class="upload-progress" id="uploadProgress">
+                            <div id="uploadText">Uploading...</div>
+                            <div class="progress-bar">
+                                <div class="progress-fill" id="progressFill"></div>
+                            </div>
+                        </div>
                     </div>
                     
                     <div class="section">
@@ -175,12 +249,20 @@
                             <p style="font-size: 13px;">Scale: Not detected</p>
                             <p style="font-size: 13px;">Items: 0</p>
                         </div>
+                        <div style="margin-top: 15px; padding: 10px; background: #f8f9fa; border-radius: 4px; font-size: 11px; color: #7f8c8d;">
+                            <strong>Controls:</strong><br>
+                            • Scroll: Zoom in/out<br>
+                            • Middle-click + drag: Pan<br>
+                            • +/- keys: Zoom<br>
+                            • R key: Reset zoom
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
     
+    <!-- Project Modal -->
     <div id="newProjectModal" class="modal">
         <div class="modal-content">
             <h2>New Project</h2>
@@ -193,14 +275,33 @@
         </div>
     </div>
     
-    <input type="file" id="fileInput" accept=".pdf,.tif,.tiff" style="display: none;" onchange="handleFileUpload(event)">
+    <!-- Context Menu -->
+    <div id="contextMenu" class="context-menu">
+        <div class="context-menu-item" onclick="renameSelectedDrawing()">Rename</div>
+        <div class="context-menu-divider"></div>
+        <div class="context-menu-item danger" onclick="deleteSelectedDrawing()">Delete</div>
+    </div>
+    
+    <!-- Hidden file input that accepts multiple files -->
+    <input type="file" id="fileInput" accept=".pdf,.tif,.tiff" multiple style="display: none;" onchange="handleFileUpload(event)">
     
     <script>
         let currentProject = null;
         let currentDrawing = null;
         let currentPage = 0;
+        let allDrawings = [];
         const canvas = document.getElementById('canvas');
         const ctx = canvas.getContext('2d');
+
+        // Zoom and Pan variables
+        let zoomLevel = 1.0;
+        let panX = 0;
+        let panY = 0;
+        let isPanning = false;
+        let lastMouseX = 0;
+        let lastMouseY = 0;
+        let currentImage = null;
+        let currentDetectedItems = [];
 
         // Initialize on page load
         initializePage();
@@ -209,6 +310,26 @@
             try {
                 await loadUserInfo();
                 await loadProjects();
+                
+                // Close context menu when clicking elsewhere
+                document.addEventListener('click', hideContextMenu);
+                
+                // Add zoom and pan event listeners
+                canvas.addEventListener('wheel', handleZoom, { passive: false });
+                canvas.addEventListener('mousedown', handleMouseDown);
+                canvas.addEventListener('mousemove', handleMouseMove);
+                canvas.addEventListener('mouseup', handleMouseUp);
+                canvas.addEventListener('mouseleave', handleMouseUp);
+                
+                // Add keyboard shortcuts
+                document.addEventListener('keydown', handleKeyboard);
+                
+                // Prevent context menu on middle click
+                canvas.addEventListener('contextmenu', (e) => {
+                    if (e.button === 1) {
+                        e.preventDefault();
+                    }
+                });
             } catch (error) {
                 console.error('Initialization error:', error);
                 alert('Error loading page. Please try refreshing or logging in again.');
@@ -286,21 +407,18 @@
                 const data = await response.json();
                 
                 currentProject = data.project;
+                allDrawings = data.drawings;
                 document.getElementById('currentProject').textContent = currentProject.name;
                 
-                const drawingList = document.getElementById('drawingList');
+                // Update dropdown
+                const drawingSelect = document.getElementById('drawingSelect');
                 if (data.drawings.length === 0) {
-                    drawingList.innerHTML = '<p style="color: #95a5a6; font-size: 13px;">No drawings yet. Upload one to begin!</p>';
+                    drawingSelect.innerHTML = '<option value="">No drawings - Upload some!</option>';
                 } else {
-                    drawingList.innerHTML = data.drawings.map(d => `
-                        <div class="drawing-item" onclick="selectDrawing(${d.id})">
-                            <div>${d.name} (${d.page_count} pages)</div>
-                            <div style="margin-top: 5px; display: flex; gap: 3px;" onclick="event.stopPropagation()">
-                                <button style="padding: 3px 8px; font-size: 11px;" onclick="renameDrawing(${d.id}, '${d.name.replace(/'/g, "\\'")}')">Rename</button>
-                                <button class="danger" style="padding: 3px 8px; font-size: 11px;" onclick="deleteDrawingConfirm(${d.id})">Delete</button>
-                            </div>
-                        </div>
-                    `).join('');
+                    drawingSelect.innerHTML = '<option value="">Select a drawing...</option>' + 
+                        data.drawings.map(d => `
+                            <option value="${d.id}">${d.name} (${d.page_count} pages)</option>
+                        `).join('');
                 }
                 
                 // Update active project in sidebar
@@ -313,6 +431,15 @@
             } catch (error) {
                 console.error('Error selecting project:', error);
                 alert('Error loading project: ' + error.message);
+            }
+        }
+
+        function handleDrawingChange() {
+            const drawingSelect = document.getElementById('drawingSelect');
+            const drawingId = parseInt(drawingSelect.value);
+            
+            if (drawingId) {
+                selectDrawing(drawingId);
             }
         }
 
@@ -336,9 +463,16 @@
                     alert('Error loading drawing image');
                 };
                 img.onload = function() {
+                    currentImage = img;
                     canvas.width = img.width;
                     canvas.height = img.height;
-                    ctx.drawImage(img, 0, 0);
+                    
+                    // Reset zoom and pan when loading new drawing
+                    zoomLevel = 1.0;
+                    panX = 0;
+                    panY = 0;
+                    
+                    redrawCanvas();
                     document.getElementById('canvasInstructions').style.display = 'none';
                     canvas.style.display = 'block';
                     loadDetectedItems();
@@ -356,24 +490,183 @@
                 if (!response.ok) {
                     throw new Error('Failed to load detected items');
                 }
-                const items = await response.json();
-                
-                items.forEach(item => {
-                    ctx.strokeStyle = item.verified ? '#2ecc71' : '#e74c3c';
-                    ctx.lineWidth = 2;
-                    ctx.strokeRect(item.x, item.y, item.width, item.height);
-                    
-                    ctx.fillStyle = item.verified ? '#2ecc71' : '#e74c3c';
-                    ctx.font = '12px Arial';
-                    ctx.fillText(item.item_type, item.x, item.y - 5);
-                });
+                currentDetectedItems = await response.json();
+                redrawCanvas();
                 
                 document.getElementById('detectionInfo').innerHTML = `
-                    <p style="font-size: 13px;">Items detected: ${items.length}</p>
+                    <p style="font-size: 13px;">Items detected: ${currentDetectedItems.length}</p>
+                    <p style="font-size: 13px;">Zoom: ${Math.round(zoomLevel * 100)}%</p>
                 `;
             } catch (error) {
                 console.error('Error loading detected items:', error);
             }
+        }
+
+        function redrawCanvas() {
+            if (!currentImage) return;
+            
+            // Clear canvas
+            ctx.setTransform(1, 0, 0, 1, 0, 0); // Reset transform
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Apply transformations: translate first, then scale
+            ctx.translate(panX, panY);
+            ctx.scale(zoomLevel, zoomLevel);
+            
+            // Draw the image at origin
+            ctx.drawImage(currentImage, 0, 0);
+            
+            // Draw detected items
+            currentDetectedItems.forEach(item => {
+                ctx.strokeStyle = item.verified ? '#2ecc71' : '#e74c3c';
+                ctx.lineWidth = 2 / zoomLevel; // Keep line width consistent
+                ctx.strokeRect(item.x, item.y, item.width, item.height);
+                
+                ctx.fillStyle = item.verified ? '#2ecc71' : '#e74c3c';
+                ctx.font = `${12 / zoomLevel}px Arial`; // Keep font size consistent
+                ctx.fillText(item.item_type, item.x, item.y - 5 / zoomLevel);
+            });
+        }
+
+        function handleZoom(event) {
+            event.preventDefault();
+            
+            if (!currentImage) return;
+            
+            // Get mouse position relative to canvas element
+            const rect = canvas.getBoundingClientRect();
+            const mouseX = event.clientX - rect.left;
+            const mouseY = event.clientY - rect.top;
+            
+            // Calculate what point in the original image is currently under the mouse
+            // Formula: imagePoint = (canvasPoint - pan) / zoom
+            const pointX = (mouseX - panX) / zoomLevel;
+            const pointY = (mouseY - panY) / zoomLevel;
+            
+            // Calculate new zoom level
+            const zoomDelta = event.deltaY > 0 ? 0.9 : 1.1;
+            const newZoom = Math.min(Math.max(0.1, zoomLevel * zoomDelta), 10);
+            
+            // Calculate new pan to keep the same point under the mouse
+            // Formula: newPan = canvasPoint - imagePoint * newZoom
+            panX = mouseX - pointX * newZoom;
+            panY = mouseY - pointY * newZoom;
+            
+            // Update zoom level
+            zoomLevel = newZoom;
+            
+            // Redraw
+            redrawCanvas();
+            
+            // Update info display
+            document.getElementById('detectionInfo').innerHTML = `
+                <p style="font-size: 13px;">Items detected: ${currentDetectedItems.length}</p>
+                <p style="font-size: 13px;">Zoom: ${Math.round(zoomLevel * 100)}%</p>
+            `;
+        }
+
+        function handleMouseDown(event) {
+            // Middle mouse button (button 1)
+            if (event.button === 1) {
+                event.preventDefault();
+                isPanning = true;
+                lastMouseX = event.clientX;
+                lastMouseY = event.clientY;
+                canvas.style.cursor = 'grabbing';
+            }
+        }
+
+        function handleMouseMove(event) {
+            if (isPanning && currentImage) {
+                const deltaX = event.clientX - lastMouseX;
+                const deltaY = event.clientY - lastMouseY;
+                
+                panX += deltaX;
+                panY += deltaY;
+                
+                lastMouseX = event.clientX;
+                lastMouseY = event.clientY;
+                
+                redrawCanvas();
+            }
+        }
+
+        function handleMouseUp(event) {
+            if (event.button === 1 || isPanning) {
+                isPanning = false;
+                canvas.style.cursor = 'default';
+            }
+        }
+
+        function resetZoom() {
+            if (!currentImage) return;
+            
+            zoomLevel = 1.0;
+            panX = 0;
+            panY = 0;
+            
+            redrawCanvas();
+            
+            document.getElementById('detectionInfo').innerHTML = `
+                <p style="font-size: 13px;">Items detected: ${currentDetectedItems.length}</p>
+                <p style="font-size: 13px;">Zoom: 100%</p>
+            `;
+        }
+
+        function handleKeyboard(event) {
+            if (!currentImage) return;
+            
+            // Don't trigger if user is typing in an input field
+            if (event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA' || event.target.tagName === 'SELECT') {
+                return;
+            }
+            
+            switch(event.key) {
+                case '+':
+                case '=':
+                    // Zoom in (centered)
+                    event.preventDefault();
+                    zoomAtCenter(1.2);
+                    break;
+                case '-':
+                case '_':
+                    // Zoom out (centered)
+                    event.preventDefault();
+                    zoomAtCenter(0.8);
+                    break;
+                case 'r':
+                case 'R':
+                    // Reset zoom
+                    event.preventDefault();
+                    resetZoom();
+                    break;
+            }
+        }
+
+        function zoomAtCenter(factor) {
+            const rect = canvas.getBoundingClientRect();
+            const centerX = rect.width / 2;
+            const centerY = rect.height / 2;
+            
+            // Calculate center position in image coordinates before zoom
+            const imageX = (centerX - panX) / zoomLevel;
+            const imageY = (centerY - panY) / zoomLevel;
+            
+            // Update zoom level
+            const newZoom = Math.min(Math.max(0.1, zoomLevel * factor), 10);
+            
+            // Adjust pan to keep center fixed
+            panX = centerX - imageX * newZoom;
+            panY = centerY - imageY * newZoom;
+            
+            zoomLevel = newZoom;
+            
+            redrawCanvas();
+            
+            document.getElementById('detectionInfo').innerHTML = `
+                <p style="font-size: 13px;">Items detected: ${currentDetectedItems.length}</p>
+                <p style="font-size: 13px;">Zoom: ${Math.round(zoomLevel * 100)}%</p>
+            `;
         }
 
         async function loadTakeoff() {
@@ -415,7 +708,8 @@
                 const result = await response.json();
                 alert(`Detected ${result.count} items!\nScale: ${result.scale}`);
                 
-                await loadDrawingPage();
+                // Reload the detected items and redraw
+                await loadDetectedItems();
                 await loadTakeoff();
             } catch (error) {
                 console.error('Error processing drawing:', error);
@@ -432,28 +726,58 @@
         }
 
         async function handleFileUpload(event) {
-            const file = event.target.files[0];
-            if (!file) return;
+            const files = event.target.files;
+            if (!files || files.length === 0) return;
             
-            try {
-                const formData = new FormData();
-                formData.append('file', file);
+            const uploadProgress = document.getElementById('uploadProgress');
+            const uploadText = document.getElementById('uploadText');
+            const progressFill = document.getElementById('progressFill');
+            
+            uploadProgress.style.display = 'block';
+            
+            let successCount = 0;
+            let failCount = 0;
+            
+            for (let i = 0; i < files.length; i++) {
+                const file = files[i];
+                const progress = Math.round(((i + 1) / files.length) * 100);
                 
-                const response = await fetch(`/api/projects/${currentProject.id}/drawings`, {
-                    method: 'POST',
-                    body: formData
-                });
+                uploadText.textContent = `Uploading ${i + 1} of ${files.length}: ${file.name}`;
+                progressFill.style.width = progress + '%';
                 
-                if (!response.ok) {
-                    const errorData = await response.json();
-                    throw new Error(errorData.error || 'Failed to upload drawing');
+                try {
+                    const formData = new FormData();
+                    formData.append('file', file);
+                    
+                    const response = await fetch(`/api/projects/${currentProject.id}/drawings`, {
+                        method: 'POST',
+                        body: formData
+                    });
+                    
+                    if (!response.ok) {
+                        const errorData = await response.json();
+                        throw new Error(errorData.error || 'Failed to upload drawing');
+                    }
+                    
+                    successCount++;
+                } catch (error) {
+                    console.error(`Error uploading ${file.name}:`, error);
+                    failCount++;
                 }
-                
-                alert('Drawing uploaded successfully!');
+            }
+            
+            // Hide progress and show result
+            uploadProgress.style.display = 'none';
+            progressFill.style.width = '0%';
+            
+            if (successCount > 0) {
                 await selectProject(currentProject.id);
-            } catch (error) {
-                console.error('Error uploading drawing:', error);
-                alert('Error uploading drawing: ' + error.message);
+            }
+            
+            if (failCount > 0) {
+                alert(`Uploaded ${successCount} drawing(s) successfully.\n${failCount} failed.`);
+            } else {
+                alert(`All ${successCount} drawing(s) uploaded successfully!`);
             }
             
             // Reset file input
@@ -500,8 +824,106 @@
             }
         }
 
-        // NEW FUNCTIONS FOR RENAME/DELETE
+        // Context Menu Functions
+        function showDrawingContextMenu(event) {
+            event.preventDefault();
+            
+            const drawingSelect = document.getElementById('drawingSelect');
+            if (!drawingSelect.value) {
+                return; // No drawing selected
+            }
+            
+            const contextMenu = document.getElementById('contextMenu');
+            contextMenu.style.display = 'block';
+            contextMenu.style.left = event.pageX + 'px';
+            contextMenu.style.top = event.pageY + 'px';
+        }
 
+        function hideContextMenu() {
+            document.getElementById('contextMenu').style.display = 'none';
+        }
+
+        async function renameSelectedDrawing() {
+            hideContextMenu();
+            
+            const drawingSelect = document.getElementById('drawingSelect');
+            const drawingId = parseInt(drawingSelect.value);
+            
+            if (!drawingId) return;
+            
+            const drawing = allDrawings.find(d => d.id === drawingId);
+            if (!drawing) return;
+            
+            const newName = prompt('Enter new drawing name:', drawing.name);
+            if (!newName || newName === drawing.name) return;
+            
+            try {
+                const response = await fetch(`/api/drawings/${drawingId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name: newName })
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Failed to rename drawing');
+                }
+                
+                if (currentProject) {
+                    await selectProject(currentProject.id);
+                }
+                alert('Drawing renamed successfully!');
+            } catch (error) {
+                console.error('Error renaming drawing:', error);
+                alert('Error renaming drawing: ' + error.message);
+            }
+        }
+
+        async function deleteSelectedDrawing() {
+            hideContextMenu();
+            
+            const drawingSelect = document.getElementById('drawingSelect');
+            const drawingId = parseInt(drawingSelect.value);
+            
+            if (!drawingId) return;
+            
+            if (!confirm('Are you sure you want to delete this drawing? All detected items will be permanently deleted!')) {
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/drawings/${drawingId}`, {
+                    method: 'DELETE'
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Failed to delete drawing');
+                }
+                
+                // Clear current drawing if it was the one deleted
+                if (currentDrawing === drawingId) {
+                    currentDrawing = null;
+                    currentImage = null;
+                    currentDetectedItems = [];
+                    zoomLevel = 1.0;
+                    panX = 0;
+                    panY = 0;
+                    document.getElementById('takeoffSummary').innerHTML = '<p style="color: #95a5a6; font-size: 13px;">Process a drawing to see results</p>';
+                    document.getElementById('canvasInstructions').style.display = 'block';
+                    canvas.style.display = 'none';
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                }
+                
+                if (currentProject) {
+                    await selectProject(currentProject.id);
+                }
+                alert('Drawing deleted successfully!');
+            } catch (error) {
+                console.error('Error deleting drawing:', error);
+                alert('Error deleting drawing: ' + error.message);
+            }
+        }
+
+        // Project Management Functions
         async function renameProject(projectId, currentName) {
             const newName = prompt('Enter new project name:', currentName);
             if (!newName || newName === currentName) return;
@@ -547,11 +969,18 @@
                 if (currentProject && currentProject.id === projectId) {
                     currentProject = null;
                     currentDrawing = null;
+                    allDrawings = [];
+                    currentImage = null;
+                    currentDetectedItems = [];
+                    zoomLevel = 1.0;
+                    panX = 0;
+                    panY = 0;
                     document.getElementById('currentProject').textContent = 'No project selected';
-                    document.getElementById('drawingList').innerHTML = '';
+                    document.getElementById('drawingSelect').innerHTML = '<option value="">No drawings</option>';
                     document.getElementById('takeoffSummary').innerHTML = '<p style="color: #95a5a6; font-size: 13px;">Process a drawing to see results</p>';
                     document.getElementById('canvasInstructions').style.display = 'block';
                     canvas.style.display = 'none';
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
                 }
                 
                 await loadProjects();
@@ -559,63 +988,6 @@
             } catch (error) {
                 console.error('Error deleting project:', error);
                 alert('Error deleting project: ' + error.message);
-            }
-        }
-
-        async function renameDrawing(drawingId, currentName) {
-            const newName = prompt('Enter new drawing name:', currentName);
-            if (!newName || newName === currentName) return;
-            
-            try {
-                const response = await fetch(`/api/drawings/${drawingId}`, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ name: newName })
-                });
-                
-                if (!response.ok) {
-                    throw new Error('Failed to rename drawing');
-                }
-                
-                if (currentProject) {
-                    await selectProject(currentProject.id);
-                }
-                alert('Drawing renamed successfully!');
-            } catch (error) {
-                console.error('Error renaming drawing:', error);
-                alert('Error renaming drawing: ' + error.message);
-            }
-        }
-
-        async function deleteDrawingConfirm(drawingId) {
-            if (!confirm('Are you sure you want to delete this drawing? All detected items will be permanently deleted!')) {
-                return;
-            }
-            
-            try {
-                const response = await fetch(`/api/drawings/${drawingId}`, {
-                    method: 'DELETE'
-                });
-                
-                if (!response.ok) {
-                    throw new Error('Failed to delete drawing');
-                }
-                
-                // Clear current drawing if it was the one deleted
-                if (currentDrawing === drawingId) {
-                    currentDrawing = null;
-                    document.getElementById('takeoffSummary').innerHTML = '<p style="color: #95a5a6; font-size: 13px;">Process a drawing to see results</p>';
-                    document.getElementById('canvasInstructions').style.display = 'block';
-                    canvas.style.display = 'none';
-                }
-                
-                if (currentProject) {
-                    await selectProject(currentProject.id);
-                }
-                alert('Drawing deleted successfully!');
-            } catch (error) {
-                console.error('Error deleting drawing:', error);
-                alert('Error deleting drawing: ' + error.message);
             }
         }
 
@@ -668,7 +1040,6 @@
                     window.location.href = '/';
                 } catch (error) {
                     console.error('Error logging out:', error);
-                    // Force redirect anyway
                     window.location.href = '/';
                 }
             }
