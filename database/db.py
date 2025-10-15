@@ -67,6 +67,16 @@ def init_db():
         FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE
     )''')
     
+    # WBS Categories table (NEW)
+    c.execute('''CREATE TABLE IF NOT EXISTS wbs_categories (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        project_id INTEGER NOT NULL,
+        name TEXT NOT NULL,
+        sort_order INTEGER DEFAULT 0,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+    )''')
+    
     # Drawings table
     c.execute('''CREATE TABLE IF NOT EXISTS drawings (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -79,7 +89,7 @@ def init_db():
         FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
     )''')
     
-    # Detected items table
+    # Detected items table - check if wbs_category_id column exists
     c.execute('''CREATE TABLE IF NOT EXISTS detected_items (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         drawing_id INTEGER NOT NULL,
@@ -94,6 +104,13 @@ def init_db():
         notes TEXT,
         FOREIGN KEY (drawing_id) REFERENCES drawings(id) ON DELETE CASCADE
     )''')
+    
+    # Add wbs_category_id column if it doesn't exist
+    try:
+        c.execute('ALTER TABLE detected_items ADD COLUMN wbs_category_id INTEGER REFERENCES wbs_categories(id)')
+        print("✓ Added wbs_category_id column to detected_items table")
+    except sqlite3.OperationalError:
+        pass  # Column already exists
     
     # Measurements table
     c.execute('''CREATE TABLE IF NOT EXISTS measurements (

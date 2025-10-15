@@ -13,6 +13,7 @@ from routes.auth import auth_bp
 from routes.admin import admin_bp
 from routes.projects import projects_bp
 from routes.drawings import drawings_bp
+from routes.wbs import wbs_bp  # NEW
 
 def create_app():
     """Application factory"""
@@ -37,6 +38,7 @@ def create_app():
     app.register_blueprint(admin_bp)
     app.register_blueprint(projects_bp)
     app.register_blueprint(drawings_bp)
+    app.register_blueprint(wbs_bp)  # NEW
     
     # Main routes
     @app.route('/')

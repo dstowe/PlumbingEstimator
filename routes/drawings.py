@@ -13,7 +13,8 @@ from config import Config
 from database.models import (
     get_project, create_drawing, get_drawing, update_drawing_scale,
     create_detected_item, get_detected_items, update_detected_item,
-    delete_detected_item, get_takeoff_summary, update_drawing, delete_drawing
+    delete_detected_item, get_takeoff_summary, update_drawing, delete_drawing,
+    get_takeoff_by_wbs_for_drawing
 )
 from services.pdf_processor import extract_pdf_page_as_image, get_pdf_page_count, detect_scale_notation
 from services.detector import detect_plumbing_symbols
@@ -27,7 +28,6 @@ drawings_bp = Blueprint('drawings', __name__, url_prefix='/api')
 @company_access_required
 def upload_drawing(project_id):
     """Upload a new drawing to a project"""
-    # Verify project belongs to current company
     project = get_project(project_id)
     if not project or project['company_id'] != session['company_id']:
         return jsonify({'error': 'Project not found'}), 404
@@ -39,21 +39,17 @@ def upload_drawing(project_id):
     if file.filename == '':
         return jsonify({'error': 'No file selected'}), 400
     
-    # Validate file type
     if not file.filename.lower().endswith(('.pdf', '.tif', '.tiff')):
         return jsonify({'error': 'Only PDF and TIFF files allowed'}), 400
     
-    # Save file
     filename = secure_filename(file.filename)
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
     filename = f"{timestamp}_{filename}"
     filepath = os.path.join(Config.UPLOAD_FOLDER, filename)
     file.save(filepath)
     
-    # Get page count
     page_count = get_pdf_page_count(filepath)
     
-    # Save to database
     drawing_id = create_drawing(
         project_id=project_id,
         name=file.filename,
@@ -80,15 +76,12 @@ def process_drawing(drawing_id):
     if not drawing:
         return jsonify({'error': 'Drawing not found'}), 404
     
-    # Extract image and detect
     img = extract_pdf_page_as_image(drawing['file_path'], page_number)
     scale = detect_scale_notation(img)
     detected_items = detect_plumbing_symbols(img)
     
-    # Update scale
     update_drawing_scale(drawing_id, scale)
     
-    # Save detected items
     for item in detected_items:
         create_detected_item(
             drawing_id=drawing_id,
@@ -118,7 +111,6 @@ def get_drawing_page_image(drawing_id, page_num):
     
     img = extract_pdf_page_as_image(drawing['file_path'], page_num, dpi=100)
     
-    # Convert to PNG
     _, buffer = cv2.imencode('.png', img)
     io_buf = io.BytesIO(buffer)
     
@@ -167,18 +159,40 @@ def item_detail(item_id):
         delete_detected_item(item_id)
         return '', 204
 
-# Takeoff Summary
+# Takeoff Summaries
 @drawings_bp.route('/drawings/<int:drawing_id>/takeoff')
 @login_required
 def get_drawing_takeoff(drawing_id):
-    """Get quantity takeoff summary"""
+    """Get quantity takeoff summary (legacy endpoint)"""
     items = get_takeoff_summary(drawing_id)
-    
-    return jsonify([{
-        'type': item['item_type'],
-        'count': item['count']
-    } for item in items])
+    return jsonify([{'type': item['item_type'], 'count': item['count']} for item in items])
 
+@drawings_bp.route('/drawings/<int:drawing_id>/takeoff-by-wbs')
+@login_required
+def get_drawing_takeoff_by_wbs(drawing_id):
+    """Get takeoff summary grouped by WBS category for a drawing"""
+    drawing = get_drawing(drawing_id)
+    if not drawing:
+        return jsonify({'error': 'Drawing not found'}), 404
+    
+    takeoff = get_takeoff_by_wbs_for_drawing(drawing_id)
+    
+    # Group by WBS category
+    result = {}
+    for row in takeoff:
+        wbs_name = row['wbs_category'] or 'Uncategorized'
+        if wbs_name not in result:
+            result[wbs_name] = {
+                'wbs_category_id': row['wbs_category_id'],
+                'wbs_category': wbs_name,
+                'items': []
+            }
+        result[wbs_name]['items'].append({
+            'item_type': row['item_type'],
+            'count': row['count']
+        })
+    
+    return jsonify(list(result.values()))
 
 @drawings_bp.route('/drawings/<int:drawing_id>', methods=['PUT', 'DELETE'])
 @login_required

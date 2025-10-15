@@ -262,3 +262,153 @@ def update_drawing(drawing_id, name):
     db = get_db()
     db.execute('UPDATE drawings SET name = ? WHERE id = ?', (name, drawing_id))
     db.commit()
+
+# WBS Category Functions (ADD THESE TO YOUR EXISTING FILE)
+
+def create_default_wbs_categories(project_id):
+    """Create default WBS categories for a new project"""
+    from .db import get_db
+    
+    default_categories = [
+        'UG Water',
+        'UG Sanitary', 
+        'UG Storm',
+        'UG Gas',
+        'AG Water',
+        'AG Sanitary',
+        'AG Storm',
+        'AG Gas',
+        'Fixtures',
+        'Equipment'
+    ]
+    
+    db = get_db()
+    cursor = db.cursor()
+    
+    for i, name in enumerate(default_categories):
+        cursor.execute(
+            'INSERT INTO wbs_categories (project_id, name, sort_order) VALUES (?, ?, ?)',
+            (project_id, name, i)
+        )
+    
+    db.commit()
+
+def get_wbs_categories(project_id):
+    """Get all WBS categories for a project"""
+    from .db import get_db
+    db = get_db()
+    return db.execute(
+        'SELECT * FROM wbs_categories WHERE project_id = ? ORDER BY sort_order, name',
+        (project_id,)
+    ).fetchall()
+
+def get_wbs_category(category_id):
+    """Get a specific WBS category"""
+    from .db import get_db
+    db = get_db()
+    return db.execute('SELECT * FROM wbs_categories WHERE id = ?', (category_id,)).fetchone()
+
+def create_wbs_category(project_id, name, sort_order=None):
+    """Create a new WBS category"""
+    from .db import get_db
+    db = get_db()
+    cursor = db.cursor()
+    
+    if sort_order is None:
+        # Get max sort_order and add 1
+        max_order = db.execute(
+            'SELECT MAX(sort_order) FROM wbs_categories WHERE project_id = ?',
+            (project_id,)
+        ).fetchone()[0]
+        sort_order = (max_order or 0) + 1
+    
+    cursor.execute(
+        'INSERT INTO wbs_categories (project_id, name, sort_order) VALUES (?, ?, ?)',
+        (project_id, name, sort_order)
+    )
+    db.commit()
+    return cursor.lastrowid
+
+def update_wbs_category(category_id, name=None, sort_order=None):
+    """Update a WBS category"""
+    from .db import get_db
+    db = get_db()
+    
+    if name is not None:
+        db.execute('UPDATE wbs_categories SET name = ? WHERE id = ?', (name, category_id))
+    
+    if sort_order is not None:
+        db.execute('UPDATE wbs_categories SET sort_order = ? WHERE id = ?', (sort_order, category_id))
+    
+    db.commit()
+
+def delete_wbs_category(category_id):
+    """Delete a WBS category"""
+    from .db import get_db
+    db = get_db()
+    
+    # Set wbs_category_id to NULL for all items in this category
+    db.execute('UPDATE detected_items SET wbs_category_id = NULL WHERE wbs_category_id = ?', (category_id,))
+    
+    # Delete the category
+    db.execute('DELETE FROM wbs_categories WHERE id = ?', (category_id,))
+    db.commit()
+
+def get_takeoff_by_wbs(project_id):
+    """Get takeoff summary grouped by WBS category for entire project"""
+    from .db import get_db
+    db = get_db()
+    
+    return db.execute('''
+        SELECT 
+            wc.id as wbs_category_id,
+            wc.name as wbs_category,
+            di.item_type,
+            COUNT(*) as count
+        FROM detected_items di
+        JOIN drawings d ON di.drawing_id = d.id
+        LEFT JOIN wbs_categories wc ON di.wbs_category_id = wc.id
+        WHERE d.project_id = ?
+        GROUP BY wc.id, wc.name, di.item_type
+        ORDER BY wc.sort_order, wc.name, di.item_type
+    ''', (project_id,)).fetchall()
+
+def get_takeoff_by_wbs_for_drawing(drawing_id):
+    """Get takeoff summary grouped by WBS category for a specific drawing"""
+    from .db import get_db
+    db = get_db()
+    
+    return db.execute('''
+        SELECT 
+            wc.id as wbs_category_id,
+            wc.name as wbs_category,
+            di.item_type,
+            COUNT(*) as count
+        FROM detected_items di
+        LEFT JOIN wbs_categories wc ON di.wbs_category_id = wc.id
+        WHERE di.drawing_id = ?
+        GROUP BY wc.id, wc.name, di.item_type
+        ORDER BY wc.sort_order, wc.name, di.item_type
+    ''', (drawing_id,)).fetchall()
+
+def update_detected_item_wbs(item_id, wbs_category_id):
+    """Update the WBS category for a detected item"""
+    from .db import get_db
+    db = get_db()
+    db.execute(
+        'UPDATE detected_items SET wbs_category_id = ? WHERE id = ?',
+        (wbs_category_id, item_id)
+    )
+    db.commit()
+
+def bulk_update_items_wbs(item_ids, wbs_category_id):
+    """Update WBS category for multiple items at once"""
+    from .db import get_db
+    db = get_db()
+    
+    placeholders = ','.join('?' * len(item_ids))
+    db.execute(
+        f'UPDATE detected_items SET wbs_category_id = ? WHERE id IN ({placeholders})',
+        [wbs_category_id] + item_ids
+    )
+    db.commit()

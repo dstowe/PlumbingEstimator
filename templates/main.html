@@ -31,18 +31,20 @@
         .container { display: flex; height: calc(100vh - 45px); }
         .sidebar { width: 300px; background: #34495e; color: white; padding: 20px; overflow-y: auto; }
         .main { flex: 1; display: flex; flex-direction: column; }
-        .toolbar { background: #455a64; color: white; padding: 15px 20px; display: flex; gap: 10px; align-items: center; }
+        .toolbar { background: #455a64; color: white; padding: 15px 20px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
         .content { flex: 1; display: flex; overflow: hidden; }
         .canvas-area { 
             flex: 1; 
             background: #ecf0f1; 
             position: relative; 
             overflow: auto;
+            min-width: 0;
             display: flex;
-            align-items: center;
+            align-items: flex-start;
             justify-content: center;
+            padding: 20px;
         }
-        .properties { width: 250px; background: white; border-left: 1px solid #ddd; padding: 20px; overflow-y: auto; }
+        .properties { width: 280px; background: white; border-left: 1px solid #ddd; padding: 20px; overflow-y: auto; }
         
         button { 
             padding: 8px 16px; 
@@ -58,6 +60,7 @@
         button.secondary:hover { background: #7f8c8d; }
         button.danger { background: #e74c3c; }
         button.danger:hover { background: #c0392b; }
+        button.small { padding: 4px 8px; font-size: 12px; }
         
         .project-list { margin-top: 20px; }
         .project-item { 
@@ -90,7 +93,9 @@
         
         #canvas { 
             display: block;
-            margin: 20px auto;
+            max-width: 100%;
+            height: auto;
+            margin: 0 auto;
             box-shadow: 0 2px 10px rgba(0,0,0,0.1);
             cursor: default;
             image-rendering: crisp-edges;
@@ -102,8 +107,25 @@
             cursor: grabbing;
         }
         
+        #canvasInstructions {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            color: #7f8c8d;
+            pointer-events: none;
+        }
+        
         .section { margin-bottom: 20px; }
-        .section h3 { margin-bottom: 10px; font-size: 14px; color: #7f8c8d; }
+        .section h3 { 
+            margin-bottom: 10px; 
+            font-size: 14px; 
+            color: #7f8c8d;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
         
         .item-count { 
             display: flex; 
@@ -112,6 +134,25 @@
             background: #ecf0f1; 
             margin: 5px 0;
             border-radius: 3px;
+        }
+        
+        .wbs-group {
+            margin-bottom: 15px;
+            border: 1px solid #ecf0f1;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        
+        .wbs-group-header {
+            background: #34495e;
+            color: white;
+            padding: 8px 10px;
+            font-weight: 600;
+            font-size: 13px;
+        }
+        
+        .wbs-group-items {
+            background: white;
         }
         
         .modal {
@@ -130,10 +171,11 @@
             padding: 30px;
             width: 400px;
             border-radius: 8px;
+            max-height: 80vh;
+            overflow-y: auto;
         }
         .modal-content h2 { margin-bottom: 20px; }
         
-        /* Context Menu Styles */
         .context-menu {
             display: none;
             position: fixed;
@@ -183,6 +225,21 @@
             background: #3498db;
             transition: width 0.3s;
         }
+        
+        .wbs-list-item {
+            padding: 8px;
+            background: #f8f9fa;
+            margin: 5px 0;
+            border-radius: 3px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .wbs-list-item.selected {
+            background: #d4edff;
+            border-left: 3px solid #3498db;
+        }
     </style>
 </head>
 <body>
@@ -210,13 +267,14 @@
                 <button onclick="processCurrentDrawing()" class="secondary">🔍 Auto-Detect</button>
                 <button onclick="exportTakeoff()" class="secondary">📊 Export Takeoff</button>
                 <button onclick="resetZoom()" class="secondary" title="Reset zoom to 100%">🔍 Reset Zoom</button>
+                <button onclick="assignToWBS()" class="secondary" title="Assign all items on current page to selected WBS">🏷️ Assign to WBS</button>
                 <span style="margin-left: auto;" id="currentProject">No project selected</span>
             </div>
             
             <div class="content">
                 <div class="canvas-area">
                     <canvas id="canvas"></canvas>
-                    <div id="canvasInstructions" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; color: #7f8c8d;">
+                    <div id="canvasInstructions">
                         <h2>Plumbing Estimator</h2>
                         <p style="margin-top: 20px;">Select or create a project to begin</p>
                     </div>
@@ -234,6 +292,19 @@
                                 <div class="progress-fill" id="progressFill"></div>
                             </div>
                         </div>
+                    </div>
+                    
+                    <div class="section">
+                        <h3>
+                            WBS CATEGORY
+                            <button class="small" onclick="showManageWBSModal()">Manage</button>
+                        </h3>
+                        <select id="wbsSelect" onchange="handleWBSChange()">
+                            <option value="">Select WBS...</option>
+                        </select>
+                        <p style="font-size: 11px; color: #7f8c8d; margin-top: 5px;">
+                            Select a category then click "Assign to WBS" to categorize detected items
+                        </p>
                     </div>
                     
                     <div class="section">
@@ -270,7 +341,22 @@
             <textarea id="projectDescription" placeholder="Description (optional)" rows="3"></textarea>
             <div style="margin-top: 20px; display: flex; gap: 10px;">
                 <button onclick="createProject()">Create</button>
-                <button onclick="closeModal()" class="secondary">Cancel</button>
+                <button onclick="closeModals()" class="secondary">Cancel</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Manage WBS Modal -->
+    <div id="manageWBSModal" class="modal">
+        <div class="modal-content">
+            <h2>Manage WBS Categories</h2>
+            <div style="margin-bottom: 15px;">
+                <input type="text" id="newWBSName" placeholder="New category name" />
+                <button onclick="addWBSCategory()" style="width: 100%; margin-top: 5px;">Add Category</button>
+            </div>
+            <div id="wbsList"></div>
+            <div style="margin-top: 20px;">
+                <button onclick="closeModals()" class="secondary">Close</button>
             </div>
         </div>
     </div>
@@ -282,7 +368,6 @@
         <div class="context-menu-item danger" onclick="deleteSelectedDrawing()">Delete</div>
     </div>
     
-    <!-- Hidden file input that accepts multiple files -->
     <input type="file" id="fileInput" accept=".pdf,.tif,.tiff" multiple style="display: none;" onchange="handleFileUpload(event)">
     
     <script>
@@ -290,6 +375,8 @@
         let currentDrawing = null;
         let currentPage = 0;
         let allDrawings = [];
+        let wbsCategories = [];
+        let currentWBSCategory = null;
         const canvas = document.getElementById('canvas');
         const ctx = canvas.getContext('2d');
 
@@ -410,6 +497,9 @@
                 allDrawings = data.drawings;
                 document.getElementById('currentProject').textContent = currentProject.name;
                 
+                // Load WBS categories for this project
+                await loadWBSCategories();
+                
                 // Update dropdown
                 const drawingSelect = document.getElementById('drawingSelect');
                 if (data.drawings.length === 0) {
@@ -431,6 +521,175 @@
             } catch (error) {
                 console.error('Error selecting project:', error);
                 alert('Error loading project: ' + error.message);
+            }
+        }
+
+        async function loadWBSCategories() {
+            if (!currentProject) return;
+            
+            try {
+                const response = await fetch(`/api/projects/${currentProject.id}/wbs`);
+                if (!response.ok) {
+                    throw new Error('Failed to load WBS categories');
+                }
+                wbsCategories = await response.json();
+                
+                const wbsSelect = document.getElementById('wbsSelect');
+                wbsSelect.innerHTML = '<option value="">Select WBS category...</option>' + 
+                    wbsCategories.map(w => `
+                        <option value="${w.id}">${w.name}</option>
+                    `).join('');
+            } catch (error) {
+                console.error('Error loading WBS categories:', error);
+            }
+        }
+
+        function handleWBSChange() {
+            const wbsSelect = document.getElementById('wbsSelect');
+            currentWBSCategory = parseInt(wbsSelect.value) || null;
+        }
+
+        async function assignToWBS() {
+            if (!currentWBSCategory) {
+                alert('Please select a WBS category first');
+                return;
+            }
+            
+            if (!currentDrawing || currentDetectedItems.length === 0) {
+                alert('No detected items on current page');
+                return;
+            }
+            
+            if (!confirm(`Assign all ${currentDetectedItems.length} items on this page to the selected WBS category?`)) {
+                return;
+            }
+            
+            try {
+                const itemIds = currentDetectedItems.map(item => item.id);
+                const response = await fetch('/api/items/bulk-update-wbs', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        item_ids: itemIds,
+                        wbs_category_id: currentWBSCategory
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Failed to assign items to WBS');
+                }
+                
+                alert(`Successfully assigned ${currentDetectedItems.length} items!`);
+                await loadTakeoff();
+            } catch (error) {
+                console.error('Error assigning items to WBS:', error);
+                alert('Error: ' + error.message);
+            }
+        }
+
+        async function showManageWBSModal() {
+            if (!currentProject) {
+                alert('Please select a project first');
+                return;
+            }
+            
+            await loadWBSCategories();
+            renderWBSList();
+            document.getElementById('manageWBSModal').style.display = 'block';
+        }
+
+        function renderWBSList() {
+            const list = document.getElementById('wbsList');
+            
+            if (wbsCategories.length === 0) {
+                list.innerHTML = '<p style="color: #95a5a6; padding: 10px;">No WBS categories</p>';
+                return;
+            }
+            
+            list.innerHTML = wbsCategories.map(w => `
+                <div class="wbs-list-item ${w.id === currentWBSCategory ? 'selected' : ''}">
+                    <span>${w.name}</span>
+                    <div style="display: flex; gap: 5px;">
+                        <button class="small" onclick="renameWBSCategory(${w.id}, '${w.name.replace(/'/g, "\\'")}')">Rename</button>
+                        <button class="small danger" onclick="deleteWBSCategory(${w.id})">Delete</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        async function addWBSCategory() {
+            const name = document.getElementById('newWBSName').value.trim();
+            if (!name) {
+                alert('Please enter a category name');
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/projects/${currentProject.id}/wbs`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name })
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Failed to create WBS category');
+                }
+                
+                document.getElementById('newWBSName').value = '';
+                await loadWBSCategories();
+                renderWBSList();
+            } catch (error) {
+                console.error('Error creating WBS category:', error);
+                alert('Error: ' + error.message);
+            }
+        }
+
+        async function renameWBSCategory(categoryId, currentName) {
+            const newName = prompt('Enter new category name:', currentName);
+            if (!newName || newName === currentName) return;
+            
+            try {
+                const response = await fetch(`/api/wbs/${categoryId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name: newName })
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Failed to rename WBS category');
+                }
+                
+                await loadWBSCategories();
+                renderWBSList();
+            } catch (error) {
+                console.error('Error renaming WBS category:', error);
+                alert('Error: ' + error.message);
+            }
+        }
+
+        async function deleteWBSCategory(categoryId) {
+            if (!confirm('Delete this WBS category? Items will be uncategorized.')) return;
+            
+            try {
+                const response = await fetch(`/api/wbs/${categoryId}`, {
+                    method: 'DELETE'
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Failed to delete WBS category');
+                }
+                
+                if (currentWBSCategory === categoryId) {
+                    currentWBSCategory = null;
+                    document.getElementById('wbsSelect').value = '';
+                }
+                
+                await loadWBSCategories();
+                renderWBSList();
+                await loadTakeoff();
+            } catch (error) {
+                console.error('Error deleting WBS category:', error);
+                alert('Error: ' + error.message);
             }
         }
 
@@ -538,19 +797,26 @@
             const mouseX = event.clientX - rect.left;
             const mouseY = event.clientY - rect.top;
             
-            // Calculate what point in the original image is currently under the mouse
-            // Formula: imagePoint = (canvasPoint - pan) / zoom
-            const pointX = (mouseX - panX) / zoomLevel;
-            const pointY = (mouseY - panY) / zoomLevel;
+            // Account for the display scale (canvas might be scaled by CSS)
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+            
+            // Calculate what point in the canvas is currently under the mouse
+            // We need to account for both the CSS display scale AND the current zoom/pan
+            const canvasX = mouseX * scaleX;
+            const canvasY = mouseY * scaleY;
+            
+            // Calculate the point in the original image coordinates
+            const pointX = (canvasX - panX) / zoomLevel;
+            const pointY = (canvasY - panY) / zoomLevel;
             
             // Calculate new zoom level
             const zoomDelta = event.deltaY > 0 ? 0.9 : 1.1;
             const newZoom = Math.min(Math.max(0.1, zoomLevel * zoomDelta), 10);
             
             // Calculate new pan to keep the same point under the mouse
-            // Formula: newPan = canvasPoint - imagePoint * newZoom
-            panX = mouseX - pointX * newZoom;
-            panY = mouseY - pointY * newZoom;
+            panX = canvasX - pointX * newZoom;
+            panY = canvasY - pointY * newZoom;
             
             // Update zoom level
             zoomLevel = newZoom;
@@ -570,22 +836,35 @@
             if (event.button === 1) {
                 event.preventDefault();
                 isPanning = true;
-                lastMouseX = event.clientX;
-                lastMouseY = event.clientY;
+                
+                // Account for display scale
+                const rect = canvas.getBoundingClientRect();
+                const scaleX = canvas.width / rect.width;
+                const scaleY = canvas.height / rect.height;
+                
+                lastMouseX = (event.clientX - rect.left) * scaleX;
+                lastMouseY = (event.clientY - rect.top) * scaleY;
                 canvas.style.cursor = 'grabbing';
             }
         }
 
         function handleMouseMove(event) {
             if (isPanning && currentImage) {
-                const deltaX = event.clientX - lastMouseX;
-                const deltaY = event.clientY - lastMouseY;
+                const rect = canvas.getBoundingClientRect();
+                const scaleX = canvas.width / rect.width;
+                const scaleY = canvas.height / rect.height;
+                
+                const currentMouseX = (event.clientX - rect.left) * scaleX;
+                const currentMouseY = (event.clientY - rect.top) * scaleY;
+                
+                const deltaX = currentMouseX - lastMouseX;
+                const deltaY = currentMouseY - lastMouseY;
                 
                 panX += deltaX;
                 panY += deltaY;
                 
-                lastMouseX = event.clientX;
-                lastMouseY = event.clientY;
+                lastMouseX = currentMouseX;
+                lastMouseY = currentMouseY;
                 
                 redrawCanvas();
             }
@@ -671,20 +950,36 @@
 
         async function loadTakeoff() {
             try {
-                const response = await fetch(`/api/drawings/${currentDrawing}/takeoff`);
+                const response = await fetch(`/api/drawings/${currentDrawing}/takeoff-by-wbs`);
                 if (!response.ok) {
                     throw new Error('Failed to load takeoff');
                 }
                 const takeoff = await response.json();
                 
-                document.getElementById('takeoffSummary').innerHTML = takeoff.map(item => `
-                    <div class="item-count">
-                        <span>${item.type}</span>
-                        <strong>${item.count}</strong>
+                const summaryDiv = document.getElementById('takeoffSummary');
+                
+                if (takeoff.length === 0) {
+                    summaryDiv.innerHTML = '<p style="color: #95a5a6; font-size: 13px;">No items detected</p>';
+                    return;
+                }
+                
+                summaryDiv.innerHTML = takeoff.map(wbs => `
+                    <div class="wbs-group">
+                        <div class="wbs-group-header">${wbs.wbs_category}</div>
+                        <div class="wbs-group-items">
+                            ${wbs.items.map(item => `
+                                <div class="item-count">
+                                    <span>${item.item_type}</span>
+                                    <strong>${item.count}</strong>
+                                </div>
+                            `).join('')}
+                        </div>
                     </div>
-                `).join('') || '<p style="color: #95a5a6; font-size: 13px;">No items detected</p>';
+                `).join('');
             } catch (error) {
                 console.error('Error loading takeoff:', error);
+                document.getElementById('takeoffSummary').innerHTML = 
+                    '<p style="color: #95a5a6; font-size: 13px;">Error loading takeoff</p>';
             }
         }
 
@@ -788,8 +1083,9 @@
             document.getElementById('newProjectModal').style.display = 'block';
         }
 
-        function closeModal() {
+        function closeModals() {
             document.getElementById('newProjectModal').style.display = 'none';
+            document.getElementById('manageWBSModal').style.display = 'none';
             document.getElementById('projectName').value = '';
             document.getElementById('projectDescription').value = '';
         }
@@ -815,9 +1111,9 @@
                     throw new Error(errorData.error || 'Failed to create project');
                 }
                 
-                closeModal();
+                closeModals();
                 await loadProjects();
-                alert('Project created successfully!');
+                alert('Project created successfully with default WBS categories!');
             } catch (error) {
                 console.error('Error creating project:', error);
                 alert('Error creating project: ' + error.message);
@@ -998,7 +1294,7 @@
             }
             
             try {
-                const response = await fetch(`/api/drawings/${currentDrawing}/takeoff`);
+                const response = await fetch(`/api/drawings/${currentDrawing}/takeoff-by-wbs`);
                 if (!response.ok) {
                     throw new Error('Failed to get takeoff data');
                 }
@@ -1009,16 +1305,18 @@
                     return;
                 }
                 
-                let csv = 'Item Type,Count\n';
-                takeoff.forEach(item => {
-                    csv += `${item.type},${item.count}\n`;
+                let csv = 'WBS Category,Item Type,Count\n';
+                takeoff.forEach(wbs => {
+                    wbs.items.forEach(item => {
+                        csv += `${wbs.wbs_category},${item.item_type},${item.count}\n`;
+                    });
                 });
                 
                 const blob = new Blob([csv], { type: 'text/csv' });
                 const url = window.URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
-                a.download = 'takeoff.csv';
+                a.download = 'takeoff_by_wbs.csv';
                 a.click();
                 window.URL.revokeObjectURL(url);
             } catch (error) {
@@ -1047,9 +1345,13 @@
 
         // Close modal when clicking outside
         window.onclick = function(event) {
-            const modal = document.getElementById('newProjectModal');
-            if (event.target === modal) {
-                closeModal();
+            const projectModal = document.getElementById('newProjectModal');
+            const wbsModal = document.getElementById('manageWBSModal');
+            if (event.target === projectModal) {
+                closeModals();
+            }
+            if (event.target === wbsModal) {
+                closeModals();
             }
         }
     </script>

@@ -5,7 +5,7 @@ Project management for companies
 from flask import Blueprint, request, jsonify, session
 from database.models import (
     create_project, get_projects_by_company, get_project, delete_project,
-    get_drawings_by_project
+    get_drawings_by_project, create_default_wbs_categories
 )
 from middleware.auth import login_required, company_access_required
 
@@ -29,6 +29,10 @@ def manage_projects():
             name=data['name'],
             description=data.get('description')
         )
+        
+        # Create default WBS categories for the new project
+        create_default_wbs_categories(project_id)
+        
         return jsonify({'id': project_id, 'name': data['name']}), 201
 
 @projects_bp.route('/<int:project_id>', methods=['GET', 'PUT', 'DELETE'])
