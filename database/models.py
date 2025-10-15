@@ -1,6 +1,7 @@
 """
 Database models and query functions
 """
+import os
 from .db import get_db
 from werkzeug.security import generate_password_hash
 
@@ -167,8 +168,24 @@ def update_drawing_scale(drawing_id, scale):
     db.commit()
 
 def delete_drawing(drawing_id):
-    """Delete a drawing"""
+    """Delete a drawing and its physical file"""
     db = get_db()
+    
+    # Get the drawing to retrieve file path before deleting
+    drawing = db.execute('SELECT file_path FROM drawings WHERE id = ?', (drawing_id,)).fetchone()
+    
+    if drawing:
+        # Delete the physical file if it exists
+        file_path = drawing['file_path']
+        if os.path.exists(file_path):
+            try:
+                os.remove(file_path)
+                print(f"✓ Deleted file: {file_path}")
+            except Exception as e:
+                print(f"⚠ Warning: Could not delete file {file_path}: {e}")
+                # Continue with database deletion even if file deletion fails
+    
+    # Delete the database record (this will cascade delete detected_items)
     db.execute('DELETE FROM drawings WHERE id = ?', (drawing_id,))
     db.commit()
 
