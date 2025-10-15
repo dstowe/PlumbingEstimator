@@ -13,7 +13,7 @@ from config import Config
 from database.models import (
     get_project, create_drawing, get_drawing, update_drawing_scale,
     create_detected_item, get_detected_items, update_detected_item,
-    delete_detected_item, get_takeoff_summary
+    delete_detected_item, get_takeoff_summary, update_drawing, delete_drawing
 )
 from services.pdf_processor import extract_pdf_page_as_image, get_pdf_page_count, detect_scale_notation
 from services.detector import detect_plumbing_symbols
@@ -178,3 +178,23 @@ def get_drawing_takeoff(drawing_id):
         'type': item['item_type'],
         'count': item['count']
     } for item in items])
+
+
+@drawings_bp.route('/drawings/<int:drawing_id>', methods=['PUT', 'DELETE'])
+@login_required
+def drawing_detail(drawing_id):
+    """Update or delete a drawing"""
+    drawing = get_drawing(drawing_id)
+    
+    if not drawing:
+        return jsonify({'error': 'Drawing not found'}), 404
+    
+    if request.method == 'PUT':
+        data = request.json
+        if 'name' in data:
+            update_drawing(drawing_id, data['name'])
+        return jsonify({'success': True})
+    
+    elif request.method == 'DELETE':
+        delete_drawing(drawing_id)
+        return '', 204

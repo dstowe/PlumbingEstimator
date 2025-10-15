@@ -31,11 +31,13 @@ def manage_projects():
         )
         return jsonify({'id': project_id, 'name': data['name']}), 201
 
-@projects_bp.route('/<int:project_id>', methods=['GET', 'DELETE'])
+@projects_bp.route('/<int:project_id>', methods=['GET', 'PUT', 'DELETE'])
 @login_required
 @company_access_required
 def project_detail(project_id):
-    """Get or delete a specific project"""
+    """Get, update, or delete a specific project"""
+    from database.models import update_project
+    
     # Verify project belongs to current company
     project = get_project(project_id)
     
@@ -51,6 +53,15 @@ def project_detail(project_id):
             'project': dict(project),
             'drawings': [dict(d) for d in drawings]
         })
+    
+    elif request.method == 'PUT':
+        data = request.json
+        update_project(
+            project_id,
+            name=data.get('name'),
+            description=data.get('description')
+        )
+        return jsonify({'success': True})
     
     elif request.method == 'DELETE':
         delete_project(project_id)

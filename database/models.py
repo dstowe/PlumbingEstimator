@@ -222,3 +222,26 @@ def get_takeoff_summary(drawing_id):
         'SELECT item_type, COUNT(*) as count FROM detected_items WHERE drawing_id = ? GROUP BY item_type',
         (drawing_id,)
     ).fetchall()
+
+# Add these functions to database/models.py
+
+def update_project(project_id, name=None, description=None):
+    """Update project details"""
+    db = get_db()
+    if name is not None:
+        db.execute(
+            'UPDATE projects SET name = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+            (name, project_id)
+        )
+    if description is not None:
+        db.execute(
+            'UPDATE projects SET description = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+            (description, project_id)
+        )
+    db.commit()
+
+def update_drawing(drawing_id, name):
+    """Update drawing name"""
+    db = get_db()
+    db.execute('UPDATE drawings SET name = ? WHERE id = ?', (name, drawing_id))
+    db.commit()
