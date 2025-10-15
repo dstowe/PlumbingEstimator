@@ -259,6 +259,30 @@
             align-items: center;
             gap: 5px;
         }
+        
+        .success-toast {
+            position: fixed;
+            top: 70px;
+            right: 20px;
+            background: #2ecc71;
+            color: white;
+            padding: 15px 20px;
+            border-radius: 5px;
+            z-index: 10000;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            animation: slideIn 0.3s ease-out;
+        }
+        
+        @keyframes slideIn {
+            from {
+                transform: translateX(400px);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
     </style>
 </head>
 <body>
@@ -286,7 +310,6 @@
                 <button onclick="processCurrentDrawing()" class="secondary">🔍 Auto-Detect</button>
                 <button onclick="exportTakeoff()" class="secondary">📊 Export Takeoff</button>
                 <button onclick="resetZoom()" class="secondary" title="Reset zoom to 100%">🔍 Reset Zoom</button>
-                <button onclick="assignToWBS()" class="secondary" title="Assign all items on current page to selected WBS">🏷️ Assign to WBS</button>
                 <span style="margin-left: auto;" id="currentProject">No project selected</span>
             </div>
             
@@ -322,7 +345,7 @@
                             <option value="">Select WBS...</option>
                         </select>
                         <p style="font-size: 11px; color: #7f8c8d; margin-top: 5px;">
-                            Select a category then click "Assign to WBS" to categorize detected items
+                            Items on this page will be auto-assigned to selected category
                         </p>
                     </div>
                     
@@ -562,9 +585,15 @@
                 // Build hierarchical dropdown
                 function addOptions(categories, level = 0) {
                     categories.forEach(cat => {
-                        const indent = '  '.repeat(level);
+                        const indent = '\u00A0\u00A0'.repeat(level * 2);
                         const prefix = level > 0 ? '└ ' : '';
-                        wbsSelect.innerHTML += `<option value="${cat.id}">${indent}${prefix}${cat.name}</option>`;
+                        const option = document.createElement('option');
+                        option.value = cat.id;
+                        option.textContent = `${indent}${prefix}${cat.name}`;
+                        if (level > 0) {
+                            option.style.fontSize = '13px';
+                        }
+                        wbsSelect.appendChild(option);
                         
                         // Add children recursively
                         const children = wbsCategories.filter(c => c.parent_id === cat.id);
@@ -582,47 +611,63 @@
             }
         }
 
-        function handleWBSChange() {
+        async function handleWBSChange() {
             const wbsSelect = document.getElementById('wbsSelect');
-            currentWBSCategory = parseInt(wbsSelect.value) || null;
-        }
-
-        async function assignToWBS() {
-            if (!currentWBSCategory) {
-                alert('Please select a WBS category first');
-                return;
-            }
+            const newCategoryId = parseInt(wbsSelect.value) || null;
             
+            // If no drawing or no items, just update the selection
             if (!currentDrawing || currentDetectedItems.length === 0) {
-                alert('No detected items on current page');
+                currentWBSCategory = newCategoryId;
                 return;
             }
             
-            if (!confirm(`Assign all ${currentDetectedItems.length} items on this page to the selected WBS category?`)) {
-                return;
-            }
-            
-            try {
-                const itemIds = currentDetectedItems.map(item => item.id);
-                const response = await fetch('/api/items/bulk-update-wbs', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        item_ids: itemIds,
-                        wbs_category_id: currentWBSCategory
-                    })
-                });
+            // If changing from one category to another (not initial selection)
+            if (currentWBSCategory !== newCategoryId && newCategoryId !== null) {
+                const categoryName = wbsSelect.options[wbsSelect.selectedIndex].text.trim();
                 
-                if (!response.ok) {
-                    throw new Error('Failed to assign items to WBS');
+                if (!confirm(`Assign all ${currentDetectedItems.length} items on this page to "${categoryName}"?`)) {
+                    // Reset to previous selection
+                    wbsSelect.value = currentWBSCategory || '';
+                    return;
                 }
                 
-                alert(`Successfully assigned ${currentDetectedItems.length} items!`);
-                await loadTakeoff();
-            } catch (error) {
-                console.error('Error assigning items to WBS:', error);
-                alert('Error: ' + error.message);
+                try {
+                    const itemIds = currentDetectedItems.map(item => item.id);
+                    const response = await fetch('/api/items/bulk-update-wbs', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            item_ids: itemIds,
+                            wbs_category_id: newCategoryId
+                        })
+                    });
+                    
+                    if (!response.ok) {
+                        throw new Error('Failed to assign items to WBS');
+                    }
+                    
+                    currentWBSCategory = newCategoryId;
+                    await loadTakeoff();
+                    
+                    // Show success message
+                    showSuccessToast(`✓ ${currentDetectedItems.length} items assigned to ${categoryName}`);
+                } catch (error) {
+                    console.error('Error assigning items to WBS:', error);
+                    alert('Error: ' + error.message);
+                    // Reset to previous selection
+                    wbsSelect.value = currentWBSCategory || '';
+                }
+            } else {
+                currentWBSCategory = newCategoryId;
             }
+        }
+
+        function showSuccessToast(message) {
+            const toast = document.createElement('div');
+            toast.className = 'success-toast';
+            toast.textContent = message;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 3000);
         }
 
         async function showManageWBSModal() {
@@ -642,26 +687,41 @@
             
             if (wbsCategories.length === 0) {
                 list.innerHTML = '<p style="color: #95a5a6; padding: 10px;">No WBS categories</p>';
+                parentSelect.innerHTML = '<option value="">Top Level Category</option>';
                 return;
             }
             
-            // Update parent dropdown
+            // Update parent dropdown with hierarchical display
             parentSelect.innerHTML = '<option value="">Top Level Category</option>';
-            wbsCategories.forEach(w => {
-                const level = getLevel(w.id);
-                const indent = '  '.repeat(level);
-                const prefix = level > 0 ? '└ ' : '';
-                parentSelect.innerHTML += `<option value="${w.id}">${indent}${prefix}${w.name}</option>`;
-            });
+            
+            function addParentOptions(categories, level = 0) {
+                categories.forEach(cat => {
+                    const indent = '\u00A0\u00A0'.repeat(level * 2);
+                    const prefix = level > 0 ? '└ ' : '';
+                    const option = document.createElement('option');
+                    option.value = cat.id;
+                    option.textContent = `${indent}${prefix}${cat.name}`;
+                    parentSelect.appendChild(option);
+                    
+                    const children = wbsCategories.filter(c => c.parent_id === cat.id);
+                    if (children.length > 0) {
+                        addParentOptions(children, level + 1);
+                    }
+                });
+            }
+            
+            const topLevel = wbsCategories.filter(c => c.parent_id === null);
+            addParentOptions(topLevel);
             
             // Render hierarchical list
             function renderCategory(cat, level = 0) {
                 const levelClass = level > 0 ? `level-${Math.min(level, 2)}` : '';
-                const indent = level > 0 ? '└ ' : '';
+                const indent = '\u00A0\u00A0'.repeat(level * 2);
+                const prefix = level > 0 ? '└ ' : '';
                 const html = `
                     <div class="wbs-list-item ${levelClass} ${cat.id === currentWBSCategory ? 'selected' : ''}">
                         <span class="wbs-item-name">
-                            ${indent}${cat.name}
+                            ${indent}${prefix}${cat.name}
                         </span>
                         <div style="display: flex; gap: 5px;">
                             <button class="small" onclick="addChildWBS(${cat.id})">+ Sub</button>
@@ -681,7 +741,6 @@
             }
             
             // Render top-level categories
-            const topLevel = wbsCategories.filter(c => c.parent_id === null);
             list.innerHTML = topLevel.map(cat => renderCategory(cat)).join('');
         }
         
@@ -713,7 +772,10 @@
                     body: JSON.stringify({ name, parent_id: parentId })
                 });
                 
-                if (!response.ok) throw new Error('Failed to create category');
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || 'Failed to create category');
+                }
                 
                 await loadWBSCategories();
                 renderWBSList();
@@ -724,24 +786,31 @@
         }
 
         async function addWBSCategory() {
-            const name = document.getElementById('newWBSName').value.trim();
+            const nameInput = document.getElementById('newWBSName');
+            const parentSelect = document.getElementById('newWBSParent');
+            const name = nameInput.value.trim();
+            
             if (!name) {
                 alert('Please enter a category name');
                 return;
             }
             
+            const parentId = parentSelect.value ? parseInt(parentSelect.value) : null;
+            
             try {
                 const response = await fetch(`/api/projects/${currentProject.id}/wbs`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ name })
+                    body: JSON.stringify({ name, parent_id: parentId })
                 });
                 
                 if (!response.ok) {
-                    throw new Error('Failed to create WBS category');
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || 'Failed to create WBS category');
                 }
                 
-                document.getElementById('newWBSName').value = '';
+                nameInput.value = '';
+                parentSelect.value = '';
                 await loadWBSCategories();
                 renderWBSList();
             } catch (error) {
@@ -762,7 +831,8 @@
                 });
                 
                 if (!response.ok) {
-                    throw new Error('Failed to rename WBS category');
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || 'Failed to rename WBS category');
                 }
                 
                 await loadWBSCategories();
@@ -774,7 +844,10 @@
         }
 
         async function deleteWBSCategory(categoryId) {
-            if (!confirm('Delete this WBS category? Items will be uncategorized.')) return;
+            const cat = wbsCategories.find(c => c.id === categoryId);
+            if (!cat) return;
+            
+            if (!confirm(`Delete "${cat.name}"?`)) return;
             
             try {
                 const response = await fetch(`/api/wbs/${categoryId}`, {
@@ -782,7 +855,8 @@
                 });
                 
                 if (!response.ok) {
-                    throw new Error('Failed to delete WBS category');
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || 'Failed to delete WBS category');
                 }
                 
                 if (currentWBSCategory === categoryId) {
@@ -795,7 +869,7 @@
                 await loadTakeoff();
             } catch (error) {
                 console.error('Error deleting WBS category:', error);
-                alert('Error: ' + error.message);
+                alert(error.message);
             }
         }
 
@@ -871,24 +945,24 @@
             if (!currentImage) return;
             
             // Clear canvas
-            ctx.setTransform(1, 0, 0, 1, 0, 0); // Reset transform
+            ctx.setTransform(1, 0, 0, 1, 0, 0);
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             
-            // Apply transformations: translate first, then scale
+            // Apply transformations
             ctx.translate(panX, panY);
             ctx.scale(zoomLevel, zoomLevel);
             
-            // Draw the image at origin
+            // Draw the image
             ctx.drawImage(currentImage, 0, 0);
             
             // Draw detected items
             currentDetectedItems.forEach(item => {
                 ctx.strokeStyle = item.verified ? '#2ecc71' : '#e74c3c';
-                ctx.lineWidth = 2 / zoomLevel; // Keep line width consistent
+                ctx.lineWidth = 2 / zoomLevel;
                 ctx.strokeRect(item.x, item.y, item.width, item.height);
                 
                 ctx.fillStyle = item.verified ? '#2ecc71' : '#e74c3c';
-                ctx.font = `${12 / zoomLevel}px Arial`; // Keep font size consistent
+                ctx.font = `${12 / zoomLevel}px Arial`;
                 ctx.fillText(item.item_type, item.x, item.y - 5 / zoomLevel);
             });
         }
@@ -898,39 +972,29 @@
             
             if (!currentImage) return;
             
-            // Get mouse position relative to canvas element
             const rect = canvas.getBoundingClientRect();
             const mouseX = event.clientX - rect.left;
             const mouseY = event.clientY - rect.top;
             
-            // Account for the display scale (canvas might be scaled by CSS)
             const scaleX = canvas.width / rect.width;
             const scaleY = canvas.height / rect.height;
             
-            // Calculate what point in the canvas is currently under the mouse
-            // We need to account for both the CSS display scale AND the current zoom/pan
             const canvasX = mouseX * scaleX;
             const canvasY = mouseY * scaleY;
             
-            // Calculate the point in the original image coordinates
             const pointX = (canvasX - panX) / zoomLevel;
             const pointY = (canvasY - panY) / zoomLevel;
             
-            // Calculate new zoom level
             const zoomDelta = event.deltaY > 0 ? 0.9 : 1.1;
             const newZoom = Math.min(Math.max(0.1, zoomLevel * zoomDelta), 10);
             
-            // Calculate new pan to keep the same point under the mouse
             panX = canvasX - pointX * newZoom;
             panY = canvasY - pointY * newZoom;
             
-            // Update zoom level
             zoomLevel = newZoom;
             
-            // Redraw
             redrawCanvas();
             
-            // Update info display
             document.getElementById('detectionInfo').innerHTML = `
                 <p style="font-size: 13px;">Items detected: ${currentDetectedItems.length}</p>
                 <p style="font-size: 13px;">Zoom: ${Math.round(zoomLevel * 100)}%</p>
@@ -938,12 +1002,10 @@
         }
 
         function handleMouseDown(event) {
-            // Middle mouse button (button 1)
             if (event.button === 1) {
                 event.preventDefault();
                 isPanning = true;
                 
-                // Account for display scale
                 const rect = canvas.getBoundingClientRect();
                 const scaleX = canvas.width / rect.width;
                 const scaleY = canvas.height / rect.height;
@@ -1001,7 +1063,6 @@
         function handleKeyboard(event) {
             if (!currentImage) return;
             
-            // Don't trigger if user is typing in an input field
             if (event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA' || event.target.tagName === 'SELECT') {
                 return;
             }
@@ -1009,19 +1070,16 @@
             switch(event.key) {
                 case '+':
                 case '=':
-                    // Zoom in (centered)
                     event.preventDefault();
                     zoomAtCenter(1.2);
                     break;
                 case '-':
                 case '_':
-                    // Zoom out (centered)
                     event.preventDefault();
                     zoomAtCenter(0.8);
                     break;
                 case 'r':
                 case 'R':
-                    // Reset zoom
                     event.preventDefault();
                     resetZoom();
                     break;
@@ -1033,14 +1091,11 @@
             const centerX = rect.width / 2;
             const centerY = rect.height / 2;
             
-            // Calculate center position in image coordinates before zoom
             const imageX = (centerX - panX) / zoomLevel;
             const imageY = (centerY - panY) / zoomLevel;
             
-            // Update zoom level
             const newZoom = Math.min(Math.max(0.1, zoomLevel * factor), 10);
             
-            // Adjust pan to keep center fixed
             panX = centerX - imageX * newZoom;
             panY = centerY - imageY * newZoom;
             
@@ -1070,7 +1125,6 @@
                 }
                 
                 summaryDiv.innerHTML = takeoff.map(wbs => {
-                    // For hierarchical display, the wbs_category already contains the full path
                     return `
                         <div class="wbs-group">
                             <div class="wbs-group-header">${wbs.wbs_category}</div>
@@ -1112,7 +1166,6 @@
                 const result = await response.json();
                 alert(`Detected ${result.count} items!\nScale: ${result.scale}`);
                 
-                // Reload the detected items and redraw
                 await loadDetectedItems();
                 await loadTakeoff();
             } catch (error) {
@@ -1170,7 +1223,6 @@
                 }
             }
             
-            // Hide progress and show result
             uploadProgress.style.display = 'none';
             progressFill.style.width = '0%';
             
@@ -1184,7 +1236,6 @@
                 alert(`All ${successCount} drawing(s) uploaded successfully!`);
             }
             
-            // Reset file input
             event.target.value = '';
         }
 
@@ -1229,13 +1280,12 @@
             }
         }
 
-        // Context Menu Functions
         function showDrawingContextMenu(event) {
             event.preventDefault();
             
             const drawingSelect = document.getElementById('drawingSelect');
             if (!drawingSelect.value) {
-                return; // No drawing selected
+                return;
             }
             
             const contextMenu = document.getElementById('contextMenu');
@@ -1304,7 +1354,6 @@
                     throw new Error('Failed to delete drawing');
                 }
                 
-                // Clear current drawing if it was the one deleted
                 if (currentDrawing === drawingId) {
                     currentDrawing = null;
                     currentImage = null;
@@ -1328,7 +1377,6 @@
             }
         }
 
-        // Project Management Functions
         async function renameProject(projectId, currentName) {
             const newName = prompt('Enter new project name:', currentName);
             if (!newName || newName === currentName) return;
@@ -1370,7 +1418,6 @@
                     throw new Error('Failed to delete project');
                 }
                 
-                // Clear current project if it was the one deleted
                 if (currentProject && currentProject.id === projectId) {
                     currentProject = null;
                     currentDrawing = null;
@@ -1452,7 +1499,6 @@
             }
         }
 
-        // Close modal when clicking outside
         window.onclick = function(event) {
             const projectModal = document.getElementById('newProjectModal');
             const wbsModal = document.getElementById('manageWBSModal');

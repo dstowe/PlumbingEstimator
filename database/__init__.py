@@ -13,7 +13,8 @@ from .models import (
     create_default_wbs_categories, get_wbs_categories, get_wbs_category, get_wbs_categories_tree,
     create_wbs_category, update_wbs_category, delete_wbs_category, get_wbs_path,
     get_takeoff_by_wbs, get_takeoff_by_wbs_for_drawing,
-    update_detected_item_wbs, bulk_update_items_wbs
+    update_detected_item_wbs, bulk_update_items_wbs,
+    check_wbs_category_has_items, check_wbs_category_has_children
 )
 
 __all__ = [
@@ -28,5 +29,6 @@ __all__ = [
     'create_default_wbs_categories', 'get_wbs_categories', 'get_wbs_category', 'get_wbs_categories_tree',
     'create_wbs_category', 'update_wbs_category', 'delete_wbs_category', 'get_wbs_path',
     'get_takeoff_by_wbs', 'get_takeoff_by_wbs_for_drawing',
-    'update_detected_item_wbs', 'bulk_update_items_wbs'
+    'update_detected_item_wbs', 'bulk_update_items_wbs',
+    'check_wbs_category_has_items', 'check_wbs_category_has_children'
 ]
