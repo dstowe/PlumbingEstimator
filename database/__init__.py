@@ -10,8 +10,8 @@ from .models import (
     create_drawing, get_drawings_by_project, get_drawing, update_drawing, delete_drawing, update_drawing_scale,
     create_detected_item, get_detected_items, update_detected_item, delete_detected_item,
     get_takeoff_summary,
-    create_default_wbs_categories, get_wbs_categories, get_wbs_category,
-    create_wbs_category, update_wbs_category, delete_wbs_category,
+    create_default_wbs_categories, get_wbs_categories, get_wbs_category, get_wbs_categories_tree,
+    create_wbs_category, update_wbs_category, delete_wbs_category, get_wbs_path,
     get_takeoff_by_wbs, get_takeoff_by_wbs_for_drawing,
     update_detected_item_wbs, bulk_update_items_wbs
 )
@@ -25,8 +25,8 @@ __all__ = [
     'create_drawing', 'get_drawings_by_project', 'get_drawing', 'update_drawing', 'delete_drawing', 'update_drawing_scale',
     'create_detected_item', 'get_detected_items', 'update_detected_item', 'delete_detected_item',
     'get_takeoff_summary',
-    'create_default_wbs_categories', 'get_wbs_categories', 'get_wbs_category',
-    'create_wbs_category', 'update_wbs_category', 'delete_wbs_category',
+    'create_default_wbs_categories', 'get_wbs_categories', 'get_wbs_category', 'get_wbs_categories_tree',
+    'create_wbs_category', 'update_wbs_category', 'delete_wbs_category', 'get_wbs_path',
     'get_takeoff_by_wbs', 'get_takeoff_by_wbs_for_drawing',
     'update_detected_item_wbs', 'bulk_update_items_wbs'
 ]

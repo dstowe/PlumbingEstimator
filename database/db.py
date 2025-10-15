@@ -71,11 +71,20 @@ def init_db():
     c.execute('''CREATE TABLE IF NOT EXISTS wbs_categories (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         project_id INTEGER NOT NULL,
+        parent_id INTEGER,
         name TEXT NOT NULL,
         sort_order INTEGER DEFAULT 0,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+        FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
+        FOREIGN KEY (parent_id) REFERENCES wbs_categories(id) ON DELETE CASCADE
     )''')
+    
+    # Add parent_id column if it doesn't exist (for existing databases)
+    try:
+        c.execute('ALTER TABLE wbs_categories ADD COLUMN parent_id INTEGER REFERENCES wbs_categories(id)')
+        print("✓ Added parent_id column to wbs_categories table")
+    except sqlite3.OperationalError:
+        pass  # Column already exists
     
     # Drawings table
     c.execute('''CREATE TABLE IF NOT EXISTS drawings (

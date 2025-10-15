@@ -227,7 +227,7 @@
         }
         
         .wbs-list-item {
-            padding: 8px;
+            padding: 8px 8px 8px 12px;
             background: #f8f9fa;
             margin: 5px 0;
             border-radius: 3px;
@@ -236,9 +236,28 @@
             align-items: center;
         }
         
+        .wbs-list-item.level-1 {
+            padding-left: 32px;
+            background: #e9ecef;
+            font-size: 13px;
+        }
+        
+        .wbs-list-item.level-2 {
+            padding-left: 52px;
+            background: #dee2e6;
+            font-size: 12px;
+        }
+        
         .wbs-list-item.selected {
             background: #d4edff;
             border-left: 3px solid #3498db;
+        }
+        
+        .wbs-item-name {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            gap: 5px;
         }
     </style>
 </head>
@@ -352,6 +371,9 @@
             <h2>Manage WBS Categories</h2>
             <div style="margin-bottom: 15px;">
                 <input type="text" id="newWBSName" placeholder="New category name" />
+                <select id="newWBSParent" style="margin-top: 5px;">
+                    <option value="">Top Level Category</option>
+                </select>
                 <button onclick="addWBSCategory()" style="width: 100%; margin-top: 5px;">Add Category</button>
             </div>
             <div id="wbsList"></div>
@@ -535,10 +557,26 @@
                 wbsCategories = await response.json();
                 
                 const wbsSelect = document.getElementById('wbsSelect');
-                wbsSelect.innerHTML = '<option value="">Select WBS category...</option>' + 
-                    wbsCategories.map(w => `
-                        <option value="${w.id}">${w.name}</option>
-                    `).join('');
+                wbsSelect.innerHTML = '<option value="">Select WBS category...</option>';
+                
+                // Build hierarchical dropdown
+                function addOptions(categories, level = 0) {
+                    categories.forEach(cat => {
+                        const indent = '  '.repeat(level);
+                        const prefix = level > 0 ? '└ ' : '';
+                        wbsSelect.innerHTML += `<option value="${cat.id}">${indent}${prefix}${cat.name}</option>`;
+                        
+                        // Add children recursively
+                        const children = wbsCategories.filter(c => c.parent_id === cat.id);
+                        if (children.length > 0) {
+                            addOptions(children, level + 1);
+                        }
+                    });
+                }
+                
+                // Start with top-level categories
+                const topLevel = wbsCategories.filter(c => c.parent_id === null);
+                addOptions(topLevel);
             } catch (error) {
                 console.error('Error loading WBS categories:', error);
             }
@@ -600,21 +638,89 @@
 
         function renderWBSList() {
             const list = document.getElementById('wbsList');
+            const parentSelect = document.getElementById('newWBSParent');
             
             if (wbsCategories.length === 0) {
                 list.innerHTML = '<p style="color: #95a5a6; padding: 10px;">No WBS categories</p>';
                 return;
             }
             
-            list.innerHTML = wbsCategories.map(w => `
-                <div class="wbs-list-item ${w.id === currentWBSCategory ? 'selected' : ''}">
-                    <span>${w.name}</span>
-                    <div style="display: flex; gap: 5px;">
-                        <button class="small" onclick="renameWBSCategory(${w.id}, '${w.name.replace(/'/g, "\\'")}')">Rename</button>
-                        <button class="small danger" onclick="deleteWBSCategory(${w.id})">Delete</button>
+            // Update parent dropdown
+            parentSelect.innerHTML = '<option value="">Top Level Category</option>';
+            wbsCategories.forEach(w => {
+                const level = getLevel(w.id);
+                const indent = '  '.repeat(level);
+                const prefix = level > 0 ? '└ ' : '';
+                parentSelect.innerHTML += `<option value="${w.id}">${indent}${prefix}${w.name}</option>`;
+            });
+            
+            // Render hierarchical list
+            function renderCategory(cat, level = 0) {
+                const levelClass = level > 0 ? `level-${Math.min(level, 2)}` : '';
+                const indent = level > 0 ? '└ ' : '';
+                const html = `
+                    <div class="wbs-list-item ${levelClass} ${cat.id === currentWBSCategory ? 'selected' : ''}">
+                        <span class="wbs-item-name">
+                            ${indent}${cat.name}
+                        </span>
+                        <div style="display: flex; gap: 5px;">
+                            <button class="small" onclick="addChildWBS(${cat.id})">+ Sub</button>
+                            <button class="small" onclick="renameWBSCategory(${cat.id}, '${cat.name.replace(/'/g, "\\'")}')">Rename</button>
+                            <button class="small danger" onclick="deleteWBSCategory(${cat.id})">Delete</button>
+                        </div>
                     </div>
-                </div>
-            `).join('');
+                `;
+                
+                let childrenHtml = '';
+                const children = wbsCategories.filter(c => c.parent_id === cat.id);
+                children.forEach(child => {
+                    childrenHtml += renderCategory(child, level + 1);
+                });
+                
+                return html + childrenHtml;
+            }
+            
+            // Render top-level categories
+            const topLevel = wbsCategories.filter(c => c.parent_id === null);
+            list.innerHTML = topLevel.map(cat => renderCategory(cat)).join('');
+        }
+        
+        function getLevel(categoryId) {
+            let level = 0;
+            let cat = wbsCategories.find(c => c.id === categoryId);
+            while (cat && cat.parent_id) {
+                level++;
+                cat = wbsCategories.find(c => c.id === cat.parent_id);
+            }
+            return level;
+        }
+        
+        function addChildWBS(parentId) {
+            const parentCat = wbsCategories.find(c => c.id === parentId);
+            if (!parentCat) return;
+            
+            const name = prompt(`Enter name for sub-category under "${parentCat.name}":`);
+            if (!name || !name.trim()) return;
+            
+            createWBSCategoryWithParent(name.trim(), parentId);
+        }
+        
+        async function createWBSCategoryWithParent(name, parentId) {
+            try {
+                const response = await fetch(`/api/projects/${currentProject.id}/wbs`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, parent_id: parentId })
+                });
+                
+                if (!response.ok) throw new Error('Failed to create category');
+                
+                await loadWBSCategories();
+                renderWBSList();
+            } catch (error) {
+                console.error('Error creating WBS category:', error);
+                alert('Error: ' + error.message);
+            }
         }
 
         async function addWBSCategory() {
@@ -963,19 +1069,22 @@
                     return;
                 }
                 
-                summaryDiv.innerHTML = takeoff.map(wbs => `
-                    <div class="wbs-group">
-                        <div class="wbs-group-header">${wbs.wbs_category}</div>
-                        <div class="wbs-group-items">
-                            ${wbs.items.map(item => `
-                                <div class="item-count">
-                                    <span>${item.item_type}</span>
-                                    <strong>${item.count}</strong>
-                                </div>
-                            `).join('')}
+                summaryDiv.innerHTML = takeoff.map(wbs => {
+                    // For hierarchical display, the wbs_category already contains the full path
+                    return `
+                        <div class="wbs-group">
+                            <div class="wbs-group-header">${wbs.wbs_category}</div>
+                            <div class="wbs-group-items">
+                                ${wbs.items.map(item => `
+                                    <div class="item-count">
+                                        <span>${item.item_type}</span>
+                                        <strong>${item.count}</strong>
+                                    </div>
+                                `).join('')}
+                            </div>
                         </div>
-                    </div>
-                `).join('');
+                    `;
+                }).join('');
             } catch (error) {
                 console.error('Error loading takeoff:', error);
                 document.getElementById('takeoffSummary').innerHTML = 
