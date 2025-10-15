@@ -202,102 +202,189 @@
         const canvas = document.getElementById('canvas');
         const ctx = canvas.getContext('2d');
         
-        loadUserInfo();
-        loadProjects();
+        // Initialize on page load
+        initializePage();
+        
+        async function initializePage() {
+            try {
+                await loadUserInfo();
+                await loadProjects();
+            } catch (error) {
+                console.error('Initialization error:', error);
+                alert('Error loading page. Please try refreshing or logging in again.');
+            }
+        }
         
         async function loadUserInfo() {
-            const userResponse = await fetch('/api/auth/me');
-            const user = await userResponse.json();
-            document.getElementById('currentUserEmail').textContent = user.email;
-            
-            const companyResponse = await fetch('/api/auth/current-company');
-            const data = await companyResponse.json();
-            if (data.company) {
-                document.getElementById('currentCompanyName').textContent = data.company.name;
+            try {
+                const userResponse = await fetch('/api/auth/me');
+                if (!userResponse.ok) {
+                    throw new Error('Failed to load user info');
+                }
+                const user = await userResponse.json();
+                document.getElementById('currentUserEmail').textContent = user.email;
+                
+                const companyResponse = await fetch('/api/auth/current-company');
+                if (!companyResponse.ok) {
+                    throw new Error('Failed to load company info');
+                }
+                const data = await companyResponse.json();
+                if (data.company) {
+                    document.getElementById('currentCompanyName').textContent = data.company.name;
+                } else {
+                    document.getElementById('currentCompanyName').textContent = 'No company selected';
+                }
+            } catch (error) {
+                console.error('Error loading user info:', error);
+                document.getElementById('currentCompanyName').textContent = 'Error loading';
+                throw error;
             }
         }
         
         async function loadProjects() {
-            const response = await fetch('/api/projects');
-            const projects = await response.json();
-            
-            const list = document.getElementById('projectList');
-            list.innerHTML = projects.map(p => `
-                <div class="project-item" onclick="selectProject(${p.id})">
-                    <strong>${p.name}</strong>
-                    <div style="font-size: 12px; color: #bdc3c7;">${p.description || 'No description'}</div>
-                </div>
-            `).join('');
+            try {
+                const response = await fetch('/api/projects');
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error('Failed to load projects:', errorText);
+                    document.getElementById('projectList').innerHTML = 
+                        '<p style="color: #e74c3c; padding: 10px;">Error loading projects. Please refresh the page.</p>';
+                    return;
+                }
+                
+                const projects = await response.json();
+                const list = document.getElementById('projectList');
+                
+                if (projects.length === 0) {
+                    list.innerHTML = '<p style="color: #bdc3c7; padding: 10px;">No projects yet. Create one to get started!</p>';
+                    return;
+                }
+                
+                list.innerHTML = projects.map(p => `
+                    <div class="project-item" data-project-id="${p.id}" onclick="selectProject(${p.id})">
+                        <strong>${p.name}</strong>
+                        <div style="font-size: 12px; color: #bdc3c7;">${p.description || 'No description'}</div>
+                    </div>
+                `).join('');
+            } catch (error) {
+                console.error('Error loading projects:', error);
+                document.getElementById('projectList').innerHTML = 
+                    '<p style="color: #e74c3c; padding: 10px;">Error: ' + error.message + '</p>';
+            }
         }
         
         async function selectProject(projectId) {
-            const response = await fetch(\`/api/projects/\${projectId}\`);
-            const data = await response.json();
-            
-            currentProject = data.project;
-            document.getElementById('currentProject').textContent = currentProject.name;
-            
-            const drawingList = document.getElementById('drawingList');
-            drawingList.innerHTML = data.drawings.map(d => `
-                <div class="drawing-item" onclick="selectDrawing(${d.id})">
-                    ${d.name} (${d.page_count} pages)
-                </div>
-            `).join('');
-            
-            document.querySelectorAll('.project-item').forEach((el, i) => {
-                el.classList.toggle('active', data.project.id === parseInt(el.onclick.toString().match(/\\d+/)[0]));
-            });
+            try {
+                const response = await fetch(`/api/projects/${projectId}`);
+                if (!response.ok) {
+                    throw new Error('Failed to load project details');
+                }
+                const data = await response.json();
+                
+                currentProject = data.project;
+                document.getElementById('currentProject').textContent = currentProject.name;
+                
+                const drawingList = document.getElementById('drawingList');
+                if (data.drawings.length === 0) {
+                    drawingList.innerHTML = '<p style="color: #95a5a6; font-size: 13px;">No drawings yet. Upload one to begin!</p>';
+                } else {
+                    drawingList.innerHTML = data.drawings.map(d => `
+                        <div class="drawing-item" onclick="selectDrawing(${d.id})">
+                            ${d.name} (${d.page_count} pages)
+                        </div>
+                    `).join('');
+                }
+                
+                // Update active project in sidebar
+                document.querySelectorAll('.project-item').forEach(el => {
+                    el.classList.remove('active');
+                    if (parseInt(el.getAttribute('data-project-id')) === projectId) {
+                        el.classList.add('active');
+                    }
+                });
+            } catch (error) {
+                console.error('Error selecting project:', error);
+                alert('Error loading project: ' + error.message);
+            }
         }
         
         async function selectDrawing(drawingId) {
-            currentDrawing = drawingId;
-            currentPage = 0;
-            await loadDrawingPage();
-            await loadTakeoff();
+            try {
+                currentDrawing = drawingId;
+                currentPage = 0;
+                await loadDrawingPage();
+                await loadTakeoff();
+            } catch (error) {
+                console.error('Error selecting drawing:', error);
+                alert('Error loading drawing: ' + error.message);
+            }
         }
         
         async function loadDrawingPage() {
-            const img = new Image();
-            img.onload = function() {
-                canvas.width = img.width;
-                canvas.height = img.height;
-                ctx.drawImage(img, 0, 0);
-                document.getElementById('canvasInstructions').style.display = 'none';
-                canvas.style.display = 'block';
-                loadDetectedItems();
-            };
-            img.src = \`/api/drawings/\${currentDrawing}/page/\${currentPage}/image\`;
+            try {
+                const img = new Image();
+                img.onerror = function() {
+                    console.error('Failed to load image');
+                    alert('Error loading drawing image');
+                };
+                img.onload = function() {
+                    canvas.width = img.width;
+                    canvas.height = img.height;
+                    ctx.drawImage(img, 0, 0);
+                    document.getElementById('canvasInstructions').style.display = 'none';
+                    canvas.style.display = 'block';
+                    loadDetectedItems();
+                };
+                img.src = `/api/drawings/${currentDrawing}/page/${currentPage}/image`;
+            } catch (error) {
+                console.error('Error loading drawing page:', error);
+                alert('Error: ' + error.message);
+            }
         }
         
         async function loadDetectedItems() {
-            const response = await fetch(\`/api/drawings/\${currentDrawing}/items?page=\${currentPage}\`);
-            const items = await response.json();
-            
-            items.forEach(item => {
-                ctx.strokeStyle = item.verified ? '#2ecc71' : '#e74c3c';
-                ctx.lineWidth = 2;
-                ctx.strokeRect(item.x, item.y, item.width, item.height);
+            try {
+                const response = await fetch(`/api/drawings/${currentDrawing}/items?page=${currentPage}`);
+                if (!response.ok) {
+                    throw new Error('Failed to load detected items');
+                }
+                const items = await response.json();
                 
-                ctx.fillStyle = item.verified ? '#2ecc71' : '#e74c3c';
-                ctx.font = '12px Arial';
-                ctx.fillText(item.item_type, item.x, item.y - 5);
-            });
-            
-            document.getElementById('detectionInfo').innerHTML = \`
-                <p style="font-size: 13px;">Items detected: \${items.length}</p>
-            \`;
+                items.forEach(item => {
+                    ctx.strokeStyle = item.verified ? '#2ecc71' : '#e74c3c';
+                    ctx.lineWidth = 2;
+                    ctx.strokeRect(item.x, item.y, item.width, item.height);
+                    
+                    ctx.fillStyle = item.verified ? '#2ecc71' : '#e74c3c';
+                    ctx.font = '12px Arial';
+                    ctx.fillText(item.item_type, item.x, item.y - 5);
+                });
+                
+                document.getElementById('detectionInfo').innerHTML = `
+                    <p style="font-size: 13px;">Items detected: ${items.length}</p>
+                `;
+            } catch (error) {
+                console.error('Error loading detected items:', error);
+            }
         }
         
         async function loadTakeoff() {
-            const response = await fetch(\`/api/drawings/\${currentDrawing}/takeoff\`);
-            const takeoff = await response.json();
-            
-            document.getElementById('takeoffSummary').innerHTML = takeoff.map(item => \`
-                <div class="item-count">
-                    <span>\${item.type}</span>
-                    <strong>\${item.count}</strong>
-                </div>
-            \`).join('') || '<p style="color: #95a5a6; font-size: 13px;">No items detected</p>';
+            try {
+                const response = await fetch(`/api/drawings/${currentDrawing}/takeoff`);
+                if (!response.ok) {
+                    throw new Error('Failed to load takeoff');
+                }
+                const takeoff = await response.json();
+                
+                document.getElementById('takeoffSummary').innerHTML = takeoff.map(item => `
+                    <div class="item-count">
+                        <span>${item.type}</span>
+                        <strong>${item.count}</strong>
+                    </div>
+                `).join('') || '<p style="color: #95a5a6; font-size: 13px;">No items detected</p>';
+            } catch (error) {
+                console.error('Error loading takeoff:', error);
+            }
         }
         
         async function processCurrentDrawing() {
@@ -306,17 +393,26 @@
                 return;
             }
             
-            const response = await fetch(\`/api/drawings/\${currentDrawing}/process\`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ page_number: currentPage })
-            });
-            
-            const result = await response.json();
-            alert(\`Detected \${result.count} items!\\nScale: \${result.scale}\`);
-            
-            await loadDrawingPage();
-            await loadTakeoff();
+            try {
+                const response = await fetch(`/api/drawings/${currentDrawing}/process`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ page_number: currentPage })
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Failed to process drawing');
+                }
+                
+                const result = await response.json();
+                alert(`Detected ${result.count} items!\nScale: ${result.scale}`);
+                
+                await loadDrawingPage();
+                await loadTakeoff();
+            } catch (error) {
+                console.error('Error processing drawing:', error);
+                alert('Error processing drawing: ' + error.message);
+            }
         }
         
         function uploadDrawing() {
@@ -331,18 +427,29 @@
             const file = event.target.files[0];
             if (!file) return;
             
-            const formData = new FormData();
-            formData.append('file', file);
-            
-            const response = await fetch(\`/api/projects/\${currentProject.id}/drawings\`, {
-                method: 'POST',
-                body: formData
-            });
-            
-            if (response.ok) {
+            try {
+                const formData = new FormData();
+                formData.append('file', file);
+                
+                const response = await fetch(`/api/projects/${currentProject.id}/drawings`, {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || 'Failed to upload drawing');
+                }
+                
                 alert('Drawing uploaded successfully!');
-                selectProject(currentProject.id);
+                await selectProject(currentProject.id);
+            } catch (error) {
+                console.error('Error uploading drawing:', error);
+                alert('Error uploading drawing: ' + error.message);
             }
+            
+            // Reset file input
+            event.target.value = '';
         }
         
         function showNewProjectModal() {
@@ -351,28 +458,37 @@
         
         function closeModal() {
             document.getElementById('newProjectModal').style.display = 'none';
+            document.getElementById('projectName').value = '';
+            document.getElementById('projectDescription').value = '';
         }
         
         async function createProject() {
-            const name = document.getElementById('projectName').value;
-            const description = document.getElementById('projectDescription').value;
+            const name = document.getElementById('projectName').value.trim();
+            const description = document.getElementById('projectDescription').value.trim();
             
             if (!name) {
                 alert('Please enter a project name');
                 return;
             }
             
-            const response = await fetch('/api/projects', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name, description })
-            });
-            
-            if (response.ok) {
+            try {
+                const response = await fetch('/api/projects', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, description })
+                });
+                
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || 'Failed to create project');
+                }
+                
                 closeModal();
-                document.getElementById('projectName').value = '';
-                document.getElementById('projectDescription').value = '';
-                loadProjects();
+                await loadProjects();
+                alert('Project created successfully!');
+            } catch (error) {
+                console.error('Error creating project:', error);
+                alert('Error creating project: ' + error.message);
             }
         }
         
@@ -382,29 +498,61 @@
                 return;
             }
             
-            const response = await fetch(\`/api/drawings/\${currentDrawing}/takeoff\`);
-            const takeoff = await response.json();
-            
-            let csv = 'Item Type,Count\\n';
-            takeoff.forEach(item => {
-                csv += \`\${item.type},\${item.count}\\n\`;
-            });
-            
-            const blob = new Blob([csv], { type: 'text/csv' });
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = 'takeoff.csv';
-            a.click();
+            try {
+                const response = await fetch(`/api/drawings/${currentDrawing}/takeoff`);
+                if (!response.ok) {
+                    throw new Error('Failed to get takeoff data');
+                }
+                const takeoff = await response.json();
+                
+                if (takeoff.length === 0) {
+                    alert('No items to export. Process a drawing first.');
+                    return;
+                }
+                
+                let csv = 'Item Type,Count\n';
+                takeoff.forEach(item => {
+                    csv += `${item.type},${item.count}\n`;
+                });
+                
+                const blob = new Blob([csv], { type: 'text/csv' });
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'takeoff.csv';
+                a.click();
+                window.URL.revokeObjectURL(url);
+            } catch (error) {
+                console.error('Error exporting takeoff:', error);
+                alert('Error exporting takeoff: ' + error.message);
+            }
         }
         
         function changeCompany() {
-            window.location.href = '/';
+            if (confirm('Are you sure you want to change company? Any unsaved work will be lost.')) {
+                window.location.href = '/';
+            }
         }
         
         async function logout() {
-            await fetch('/api/auth/logout', { method: 'POST' });
-            window.location.href = '/';
+            if (confirm('Are you sure you want to logout?')) {
+                try {
+                    await fetch('/api/auth/logout', { method: 'POST' });
+                    window.location.href = '/';
+                } catch (error) {
+                    console.error('Error logging out:', error);
+                    // Force redirect anyway
+                    window.location.href = '/';
+                }
+            }
+        }
+        
+        // Close modal when clicking outside
+        window.onclick = function(event) {
+            const modal = document.getElementById('newProjectModal');
+            if (event.target === modal) {
+                closeModal();
+            }
         }
     </script>
 </body>
