@@ -81,16 +81,6 @@ def create_app():
         # Check if user is admin (will be validated by route decorators)
         return render_template('materials.html')
     
-    @app.route('/takeoff')
-    def takeoff_interface():
-        """Takeoff measurement interface"""
-        if 'user_id' not in session:
-            return redirect('/')
-        
-        if 'company_id' not in session:
-            return redirect('/')
-        
-        return render_template('takeoff.html')
     
     @app.route('/takeoff')
     def takeoff_interface():
