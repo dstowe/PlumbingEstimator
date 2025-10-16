@@ -483,3 +483,161 @@ def bulk_update_items_wbs(item_ids, wbs_category_id):
         [wbs_category_id] + item_ids
     )
     db.commit()
+
+# Scale Management Functions
+
+def create_custom_scale(project_id, name, pixels_per_unit, unit='feet'):
+    """Create a custom scale for a project"""
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute(
+        'INSERT INTO custom_scales (project_id, name, pixels_per_unit, unit) VALUES (?, ?, ?, ?)',
+        (project_id, name, pixels_per_unit, unit)
+    )
+    db.commit()
+    return cursor.lastrowid
+
+def get_custom_scales_for_project(project_id):
+    """Get all custom scales for a project"""
+    db = get_db()
+    return db.execute(
+        'SELECT * FROM custom_scales WHERE project_id = ? ORDER BY created_at DESC',
+        (project_id,)
+    ).fetchall()
+
+def delete_custom_scale(scale_id):
+    """Delete a custom scale"""
+    db = get_db()
+    db.execute('DELETE FROM custom_scales WHERE id = ?', (scale_id,))
+    db.commit()
+
+def set_page_scale(drawing_id, page_number, scale_id=None, scale_name=None, pixels_per_unit=None):
+    """Set or update the scale for a specific page"""
+    db = get_db()
+    
+    # Check if page scale already exists
+    existing = db.execute(
+        'SELECT id FROM page_scales WHERE drawing_id = ? AND page_number = ?',
+        (drawing_id, page_number)
+    ).fetchone()
+    
+    if existing:
+        # Update existing record
+        db.execute(
+            '''UPDATE page_scales 
+               SET scale_id = ?, scale_name = ?, pixels_per_unit = ?, updated_at = CURRENT_TIMESTAMP 
+               WHERE id = ?''',
+            (scale_id, scale_name, pixels_per_unit, existing['id'])
+        )
+        print(f"Updated scale for drawing {drawing_id}, page {page_number}: {scale_name} ({scale_id})")
+    else:
+        # Insert new record
+        db.execute(
+            '''INSERT INTO page_scales (drawing_id, page_number, scale_id, scale_name, pixels_per_unit) 
+               VALUES (?, ?, ?, ?, ?)''',
+            (drawing_id, page_number, scale_id, scale_name, pixels_per_unit)
+        )
+        print(f"Created scale for drawing {drawing_id}, page {page_number}: {scale_name} ({scale_id})")
+    
+    db.commit()
+    
+    # Verify the save
+    result = db.execute(
+        'SELECT * FROM page_scales WHERE drawing_id = ? AND page_number = ?',
+        (drawing_id, page_number)
+    ).fetchone()
+    
+    if result:
+        print(f"Verified - Scale ID in DB: {result['scale_id']}, Name: {result['scale_name']}")
+    else:
+        print(f"WARNING: Failed to verify scale save!")
+
+def get_page_scale(drawing_id, page_number):
+    """Get the scale for a specific page"""
+    db = get_db()
+    result = db.execute(
+        'SELECT * FROM page_scales WHERE drawing_id = ? AND page_number = ?',
+        (drawing_id, page_number)
+    ).fetchone()
+    
+    if result:
+        print(f"Retrieved scale for drawing {drawing_id}, page {page_number}: {result['scale_name']} ({result['scale_id']})")
+    else:
+        print(f"No scale found for drawing {drawing_id}, page {page_number}")
+    
+    return result
+
+def create_scale_zone(drawing_id, page_number, name, x, y, width, height, 
+                      scale_id=None, scale_name=None, pixels_per_unit=None):
+    """Create a scale zone (bounding box with different scale)"""
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute(
+        '''INSERT INTO scale_zones 
+        (drawing_id, page_number, name, x, y, width, height, scale_id, scale_name, pixels_per_unit)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
+        (drawing_id, page_number, name, x, y, width, height, scale_id, scale_name, pixels_per_unit)
+    )
+    db.commit()
+    return cursor.lastrowid
+
+def get_scale_zones_for_page(drawing_id, page_number):
+    """Get all scale zones for a page"""
+    db = get_db()
+    return db.execute(
+        'SELECT * FROM scale_zones WHERE drawing_id = ? AND page_number = ? ORDER BY created_at',
+        (drawing_id, page_number)
+    ).fetchall()
+
+def update_scale_zone(zone_id, name=None, x=None, y=None, width=None, height=None,
+                      scale_id=None, scale_name=None, pixels_per_unit=None):
+    """Update a scale zone"""
+    db = get_db()
+    
+    updates = []
+    params = []
+    
+    if name is not None:
+        updates.append('name = ?')
+        params.append(name)
+    if x is not None:
+        updates.append('x = ?')
+        params.append(x)
+    if y is not None:
+        updates.append('y = ?')
+        params.append(y)
+    if width is not None:
+        updates.append('width = ?')
+        params.append(width)
+    if height is not None:
+        updates.append('height = ?')
+        params.append(height)
+    if scale_id is not None:
+        updates.append('scale_id = ?')
+        params.append(scale_id)
+    if scale_name is not None:
+        updates.append('scale_name = ?')
+        params.append(scale_name)
+    if pixels_per_unit is not None:
+        updates.append('pixels_per_unit = ?')
+        params.append(pixels_per_unit)
+    
+    if updates:
+        params.append(zone_id)
+        query = f"UPDATE scale_zones SET {', '.join(updates)} WHERE id = ?"
+        db.execute(query, params)
+        db.commit()
+
+def delete_scale_zone(zone_id):
+    """Delete a scale zone"""
+    db = get_db()
+    db.execute('DELETE FROM scale_zones WHERE id = ?', (zone_id,))
+    db.commit()
+
+def get_project_from_drawing(drawing_id):
+    """Get project that owns a drawing"""
+    db = get_db()
+    return db.execute(
+        'SELECT p.* FROM projects p JOIN drawings d ON p.id = d.project_id WHERE d.id = ?',
+        (drawing_id,)
+    ).fetchone()

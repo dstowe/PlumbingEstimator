@@ -31,7 +31,34 @@
         .container { display: flex; height: calc(100vh - 45px); }
         .sidebar { width: 300px; background: #34495e; color: white; padding: 20px; overflow-y: auto; }
         .main { flex: 1; display: flex; flex-direction: column; }
-        .toolbar { background: #455a64; color: white; padding: 15px 20px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+        .toolbar { 
+            background: #455a64; 
+            color: white; 
+            padding: 15px 20px; 
+            display: flex; 
+            gap: 10px; 
+            align-items: center; 
+            flex-wrap: wrap;
+        }
+        .toolbar select {
+            padding: 6px 10px;
+            border: 1px solid #607d8b;
+            border-radius: 4px;
+            background: #546e7a;
+            color: white;
+            font-size: 13px;
+            cursor: pointer;
+            min-width: 180px;
+        }
+        .toolbar select:focus {
+            outline: none;
+            border-color: #3498db;
+        }
+        .toolbar label {
+            font-size: 13px;
+            font-weight: 500;
+            margin-right: 5px;
+        }
         .content { flex: 1; display: flex; overflow: hidden; }
         .canvas-area { 
             flex: 1; 
@@ -83,7 +110,7 @@
             margin: 5px 0;
         }
         
-        input[type="text"], textarea {
+        input[type="text"], input[type="number"], textarea {
             width: 100%;
             padding: 8px;
             border: 1px solid #ddd;
@@ -98,13 +125,6 @@
             margin: 0 auto;
             box-shadow: 0 2px 10px rgba(0,0,0,0.1);
             cursor: default;
-            image-rendering: crisp-edges;
-            image-rendering: -moz-crisp-edges;
-            image-rendering: pixelated;
-        }
-        
-        #canvas:active {
-            cursor: grabbing;
         }
         
         #canvasInstructions {
@@ -127,15 +147,6 @@
             align-items: center;
         }
         
-        .item-count { 
-            display: flex; 
-            justify-content: space-between; 
-            padding: 8px; 
-            background: #ecf0f1; 
-            margin: 5px 0;
-            border-radius: 3px;
-        }
-        
         .wbs-group {
             margin-bottom: 15px;
             border: 1px solid #ecf0f1;
@@ -151,9 +162,15 @@
             font-size: 13px;
         }
         
-        .wbs-group-items {
-            background: white;
+        .item-count { 
+            display: flex; 
+            justify-content: space-between; 
+            padding: 8px; 
+            background: white; 
+            margin: 0;
+            border-bottom: 1px solid #ecf0f1;
         }
+        .item-count:last-child { border-bottom: none; }
         
         .modal {
             display: none;
@@ -167,14 +184,85 @@
         }
         .modal-content {
             background: white;
-            margin: 100px auto;
+            margin: 80px auto;
             padding: 30px;
-            width: 400px;
+            width: 500px;
             border-radius: 8px;
             max-height: 80vh;
             overflow-y: auto;
         }
         .modal-content h2 { margin-bottom: 20px; }
+        
+        .calibration-canvas {
+            border: 2px solid #ddd;
+            cursor: crosshair;
+            display: block;
+            margin: 15px auto;
+            max-width: 100%;
+        }
+        
+        .zone-list-item {
+            padding: 8px;
+            background: #f8f9fa;
+            margin: 5px 0;
+            border-radius: 3px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .drawing-mode-info {
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #3498db;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 5px;
+            font-size: 14px;
+            z-index: 100;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        }
+        
+        .success-toast {
+            position: fixed;
+            top: 70px;
+            right: 20px;
+            background: #2ecc71;
+            color: white;
+            padding: 15px 20px;
+            border-radius: 5px;
+            z-index: 10000;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            animation: slideIn 0.3s ease-out;
+        }
+        
+        @keyframes slideIn {
+            from { transform: translateX(400px); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        
+        .wbs-list-item {
+            padding: 8px 8px 8px 12px;
+            background: #f8f9fa;
+            margin: 5px 0;
+            border-radius: 3px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .wbs-list-item.level-1 {
+            padding-left: 32px;
+            background: #e9ecef;
+            font-size: 13px;
+        }
+        
+        .wbs-list-item.selected {
+            background: #d4edff;
+            border-left: 3px solid #3498db;
+        }
         
         .context-menu {
             display: none;
@@ -203,86 +291,6 @@
             background: #ecf0f1;
             margin: 5px 0;
         }
-        
-        .upload-progress {
-            margin-top: 10px;
-            padding: 10px;
-            background: #ecf0f1;
-            border-radius: 4px;
-            font-size: 13px;
-            display: none;
-        }
-        .progress-bar {
-            width: 100%;
-            height: 20px;
-            background: #ddd;
-            border-radius: 10px;
-            overflow: hidden;
-            margin-top: 5px;
-        }
-        .progress-fill {
-            height: 100%;
-            background: #3498db;
-            transition: width 0.3s;
-        }
-        
-        .wbs-list-item {
-            padding: 8px 8px 8px 12px;
-            background: #f8f9fa;
-            margin: 5px 0;
-            border-radius: 3px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        
-        .wbs-list-item.level-1 {
-            padding-left: 32px;
-            background: #e9ecef;
-            font-size: 13px;
-        }
-        
-        .wbs-list-item.level-2 {
-            padding-left: 52px;
-            background: #dee2e6;
-            font-size: 12px;
-        }
-        
-        .wbs-list-item.selected {
-            background: #d4edff;
-            border-left: 3px solid #3498db;
-        }
-        
-        .wbs-item-name {
-            flex: 1;
-            display: flex;
-            align-items: center;
-            gap: 5px;
-        }
-        
-        .success-toast {
-            position: fixed;
-            top: 70px;
-            right: 20px;
-            background: #2ecc71;
-            color: white;
-            padding: 15px 20px;
-            border-radius: 5px;
-            z-index: 10000;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
-            animation: slideIn 0.3s ease-out;
-        }
-        
-        @keyframes slideIn {
-            from {
-                transform: translateX(400px);
-                opacity: 0;
-            }
-            to {
-                transform: translateX(0);
-                opacity: 1;
-            }
-        }
     </style>
 </head>
 <body>
@@ -306,10 +314,22 @@
         
         <div class="main">
             <div class="toolbar">
-                <button onclick="uploadDrawing()">📄 Upload Drawings</button>
-                <button onclick="processCurrentDrawing()" class="secondary">🔍 Auto-Detect</button>
-                <button onclick="exportTakeoff()" class="secondary">📊 Export Takeoff</button>
-                <button onclick="resetZoom()" class="secondary" title="Reset zoom to 100%">🔍 Reset Zoom</button>
+                <button onclick="uploadDrawing()">📄 Upload</button>
+                <button onclick="processCurrentDrawing()" class="secondary">🔍 Detect</button>
+                
+                <div style="display: flex; align-items: center; gap: 5px;">
+                    <label>Scale:</label>
+                    <select id="scaleSelect" onchange="handleScaleChange()" style="min-width: 220px;">
+                        <option value="">No scale set</option>
+                    </select>
+                </div>
+                
+                <button onclick="showCalibrateModal()" class="secondary" title="Create custom scale">📏 Calibrate</button>
+                <button onclick="toggleScaleZoneMode()" class="secondary" id="scaleZoneBtn">📐 Add Zone</button>
+                <button onclick="showScaleZonesModal()" class="secondary">Zones</button>
+                <button onclick="resetZoom()" class="secondary" title="Reset zoom">🔍 Reset</button>
+                <button onclick="exportTakeoff()" class="secondary">📊 Export</button>
+                
                 <span style="margin-left: auto;" id="currentProject">No project selected</span>
             </div>
             
@@ -320,6 +340,9 @@
                         <h2>Plumbing Estimator</h2>
                         <p style="margin-top: 20px;">Select or create a project to begin</p>
                     </div>
+                    <div id="drawingModeInfo" class="drawing-mode-info" style="display: none;">
+                        Click and drag to create scale zone
+                    </div>
                 </div>
                 
                 <div class="properties">
@@ -328,12 +351,6 @@
                         <select id="drawingSelect" onchange="handleDrawingChange()" oncontextmenu="showDrawingContextMenu(event)">
                             <option value="">No drawings</option>
                         </select>
-                        <div class="upload-progress" id="uploadProgress">
-                            <div id="uploadText">Uploading...</div>
-                            <div class="progress-bar">
-                                <div class="progress-fill" id="progressFill"></div>
-                            </div>
-                        </div>
                     </div>
                     
                     <div class="section">
@@ -344,9 +361,6 @@
                         <select id="wbsSelect" onchange="handleWBSChange()">
                             <option value="">Select WBS...</option>
                         </select>
-                        <p style="font-size: 11px; color: #7f8c8d; margin-top: 5px;">
-                            Items on this page will be auto-assigned to selected category
-                        </p>
                     </div>
                     
                     <div class="section">
@@ -357,22 +371,23 @@
                     </div>
                     
                     <div class="section">
-                        <h3>DETECTION INFO</h3>
+                        <h3>INFO</h3>
                         <div id="detectionInfo">
-                            <p style="font-size: 13px;">Scale: Not detected</p>
+                            <p style="font-size: 13px;">Scale: Not set</p>
                             <p style="font-size: 13px;">Items: 0</p>
-                        </div>
-                        <div style="margin-top: 15px; padding: 10px; background: #f8f9fa; border-radius: 4px; font-size: 11px; color: #7f8c8d;">
-                            <strong>Controls:</strong><br>
-                            • Scroll: Zoom in/out<br>
-                            • Middle-click + drag: Pan<br>
-                            • +/- keys: Zoom<br>
-                            • R key: Reset zoom
+                            <p style="font-size: 13px;">Zones: 0</p>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
+    </div>
+    
+    <!-- Context Menu -->
+    <div id="contextMenu" class="context-menu">
+        <div class="context-menu-item" onclick="renameSelectedDrawing()">Rename</div>
+        <div class="context-menu-divider"></div>
+        <div class="context-menu-item danger" onclick="deleteSelectedDrawing()">Delete</div>
     </div>
     
     <!-- Project Modal -->
@@ -388,7 +403,7 @@
         </div>
     </div>
     
-    <!-- Manage WBS Modal -->
+    <!-- WBS Modal -->
     <div id="manageWBSModal" class="modal">
         <div class="modal-content">
             <h2>Manage WBS Categories</h2>
@@ -406,26 +421,106 @@
         </div>
     </div>
     
-    <!-- Context Menu -->
-    <div id="contextMenu" class="context-menu">
-        <div class="context-menu-item" onclick="renameSelectedDrawing()">Rename</div>
-        <div class="context-menu-divider"></div>
-        <div class="context-menu-item danger" onclick="deleteSelectedDrawing()">Delete</div>
+    <!-- Calibrate Modal -->
+    <div id="calibrateModal" class="modal">
+        <div class="modal-content">
+            <h2>Calibrate Scale</h2>
+            <p style="margin-bottom: 15px; color: #7f8c8d;">
+                Draw a line on the drawing where you know the real-world distance.
+            </p>
+            
+            <canvas id="calibrationCanvas" class="calibration-canvas" width="400" height="300"></canvas>
+            
+            <div style="margin-top: 15px;">
+                <label>Known Distance:</label>
+                <input type="number" id="knownDistance" placeholder="e.g., 10" step="0.1" />
+                
+                <label style="margin-top: 10px; display: block;">Unit:</label>
+                <select id="distanceUnit">
+                    <option value="feet">Feet</option>
+                    <option value="meters">Meters</option>
+                    <option value="inches">Inches</option>
+                    <option value="centimeters">Centimeters</option>
+                </select>
+                
+                <label style="margin-top: 10px; display: block;">Scale Name (optional):</label>
+                <input type="text" id="scaleName" placeholder="e.g., Custom Scale 1" />
+            </div>
+            
+            <div id="calibrationResult" style="margin-top: 15px; padding: 10px; background: #f8f9fa; border-radius: 4px; display: none;">
+                <strong>Result:</strong>
+                <p id="calibrationResultText"></p>
+            </div>
+            
+            <div style="margin-top: 20px; display: flex; gap: 10px;">
+                <button onclick="applyCalibration()">Apply Scale</button>
+                <button onclick="resetCalibration()" class="secondary">Reset</button>
+                <button onclick="closeModals()" class="secondary">Cancel</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Scale Zones Modal -->
+    <div id="scaleZonesModal" class="modal">
+        <div class="modal-content">
+            <h2>Scale Zones</h2>
+            <p style="margin-bottom: 15px; color: #7f8c8d;">
+                Manage areas with different scales on this page.
+            </p>
+            <div id="zonesList"></div>
+            <div style="margin-top: 20px;">
+                <button onclick="closeModals()" class="secondary">Close</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Create Zone Modal -->
+    <div id="createZoneModal" class="modal">
+        <div class="modal-content">
+            <h2>Create Scale Zone</h2>
+            <p style="margin-bottom: 15px; color: #7f8c8d;">
+                Define a name and scale for this area.
+            </p>
+            
+            <div style="margin-bottom: 15px;">
+                <label>Zone Name:</label>
+                <input type="text" id="zoneNameInput" placeholder="e.g., Detail View 1" />
+            </div>
+            
+            <div style="margin-bottom: 15px;">
+                <label>Zone Scale:</label>
+                <select id="zoneScaleSelect">
+                    <option value="inherit">Inherit from Page Scale</option>
+                </select>
+            </div>
+            
+            <div style="margin-top: 20px; display: flex; gap: 10px;">
+                <button onclick="confirmCreateZone()">Create Zone</button>
+                <button onclick="cancelCreateZone()" class="secondary">Cancel</button>
+            </div>
+        </div>
     </div>
     
     <input type="file" id="fileInput" accept=".pdf,.tif,.tiff" multiple style="display: none;" onchange="handleFileUpload(event)">
     
     <script>
+        // State variables
         let currentProject = null;
         let currentDrawing = null;
         let currentPage = 0;
         let allDrawings = [];
         let wbsCategories = [];
         let currentWBSCategory = null;
+        
+        // Scale variables
+        let commonScales = [];
+        let customScales = [];
+        let currentPageScale = null;
+        let scaleZones = [];
+        
+        // Canvas variables
         const canvas = document.getElementById('canvas');
         const ctx = canvas.getContext('2d');
-
-        // Zoom and Pan variables
         let zoomLevel = 1.0;
         let panX = 0;
         let panY = 0;
@@ -434,300 +529,1203 @@
         let lastMouseY = 0;
         let currentImage = null;
         let currentDetectedItems = [];
-
-        // Initialize on page load
+        
+        // Calibration variables
+        let calibrationPoints = [];
+        const calibrationCanvas = document.getElementById('calibrationCanvas');
+        const calibrationCtx = calibrationCanvas ? calibrationCanvas.getContext('2d') : null;
+        
+        // Scale zone drawing variables
+        let isDrawingZone = false;
+        let zoneStartX = 0;
+        let zoneStartY = 0;
+        let currentZoneRect = null;
+        let pendingZone = null; // Store zone coordinates while showing modal
+        let isCreatingZone = false; // Prevent double creation
+        
+        // Initialize
         initializePage();
-
+        
         async function initializePage() {
             try {
                 await loadUserInfo();
                 await loadProjects();
+                await loadCommonScales();
                 
-                // Close context menu when clicking elsewhere
-                document.addEventListener('click', hideContextMenu);
-                
-                // Add zoom and pan event listeners
                 canvas.addEventListener('wheel', handleZoom, { passive: false });
                 canvas.addEventListener('mousedown', handleMouseDown);
                 canvas.addEventListener('mousemove', handleMouseMove);
                 canvas.addEventListener('mouseup', handleMouseUp);
                 canvas.addEventListener('mouseleave', handleMouseUp);
-                
-                // Add keyboard shortcuts
                 document.addEventListener('keydown', handleKeyboard);
+                document.addEventListener('click', hideContextMenu);
                 
-                // Prevent context menu on middle click
-                canvas.addEventListener('contextmenu', (e) => {
-                    if (e.button === 1) {
-                        e.preventDefault();
-                    }
-                });
+                if (calibrationCanvas) {
+                    calibrationCanvas.addEventListener('click', handleCalibrationClick);
+                }
             } catch (error) {
                 console.error('Initialization error:', error);
-                alert('Error loading page. Please try refreshing or logging in again.');
             }
         }
-
+        
         async function loadUserInfo() {
-            try {
-                const userResponse = await fetch('/api/auth/me');
-                if (!userResponse.ok) {
-                    throw new Error('Failed to load user info');
-                }
-                const user = await userResponse.json();
-                document.getElementById('currentUserEmail').textContent = user.email;
-                
-                const companyResponse = await fetch('/api/auth/current-company');
-                if (!companyResponse.ok) {
-                    throw new Error('Failed to load company info');
-                }
-                const data = await companyResponse.json();
-                if (data.company) {
-                    document.getElementById('currentCompanyName').textContent = data.company.name;
-                } else {
-                    document.getElementById('currentCompanyName').textContent = 'No company selected';
-                }
-            } catch (error) {
-                console.error('Error loading user info:', error);
-                document.getElementById('currentCompanyName').textContent = 'Error loading';
-                throw error;
+            const userResponse = await fetch('/api/auth/me');
+            const user = await userResponse.json();
+            document.getElementById('currentUserEmail').textContent = user.email;
+            
+            const companyResponse = await fetch('/api/auth/current-company');
+            const data = await companyResponse.json();
+            if (data.company) {
+                document.getElementById('currentCompanyName').textContent = data.company.name;
             }
         }
-
+        
         async function loadProjects() {
-            try {
-                const response = await fetch('/api/projects');
-                if (!response.ok) {
-                    const errorText = await response.text();
-                    console.error('Failed to load projects:', errorText);
-                    document.getElementById('projectList').innerHTML = 
-                        '<p style="color: #e74c3c; padding: 10px;">Error loading projects. Please refresh the page.</p>';
-                    return;
-                }
-                
-                const projects = await response.json();
-                const list = document.getElementById('projectList');
-                
-                if (projects.length === 0) {
-                    list.innerHTML = '<p style="color: #bdc3c7; padding: 10px;">No projects yet. Create one to get started!</p>';
-                    return;
-                }
-                
-                list.innerHTML = projects.map(p => `
-                    <div class="project-item" data-project-id="${p.id}" onclick="selectProject(${p.id})">
-                        <strong>${p.name}</strong>
-                        <div style="font-size: 12px; color: #bdc3c7;">${p.description || 'No description'}</div>
-                        <div style="margin-top: 8px; display: flex; gap: 5px;" onclick="event.stopPropagation()">
-                            <button style="padding: 4px 8px; font-size: 12px;" onclick="renameProject(${p.id}, '${p.name.replace(/'/g, "\\'")}')">Rename</button>
-                            <button class="danger" style="padding: 4px 8px; font-size: 12px;" onclick="deleteProjectConfirm(${p.id})">Delete</button>
-                        </div>
+            const response = await fetch('/api/projects');
+            const projects = await response.json();
+            const list = document.getElementById('projectList');
+            
+            if (projects.length === 0) {
+                list.innerHTML = '<p style="color: #bdc3c7; padding: 10px;">No projects yet</p>';
+                return;
+            }
+            
+            list.innerHTML = projects.map(p => `
+                <div class="project-item" data-project-id="${p.id}" onclick="selectProject(${p.id})">
+                    <strong>${p.name}</strong>
+                    <div style="font-size: 12px; color: #bdc3c7;">${p.description || ''}</div>
+                    <div style="margin-top: 8px; display: flex; gap: 5px;" onclick="event.stopPropagation()">
+                        <button style="padding: 4px 8px; font-size: 12px;" onclick="renameProject(${p.id}, '${p.name.replace(/'/g, "\\'")}')">Rename</button>
+                        <button class="danger" style="padding: 4px 8px; font-size: 12px;" onclick="deleteProjectConfirm(${p.id})">Delete</button>
                     </div>
-                `).join('');
-            } catch (error) {
-                console.error('Error loading projects:', error);
-                document.getElementById('projectList').innerHTML = 
-                    '<p style="color: #e74c3c; padding: 10px;">Error: ' + error.message + '</p>';
-            }
+                </div>
+            `).join('');
         }
-
+        
         async function selectProject(projectId) {
-            try {
-                const response = await fetch(`/api/projects/${projectId}`);
-                if (!response.ok) {
-                    throw new Error('Failed to load project details');
+            const response = await fetch(`/api/projects/${projectId}`);
+            const data = await response.json();
+            
+            currentProject = data.project;
+            allDrawings = data.drawings;
+            document.getElementById('currentProject').textContent = currentProject.name;
+            
+            await loadWBSCategories();
+            
+            const drawingSelect = document.getElementById('drawingSelect');
+            if (data.drawings.length === 0) {
+                drawingSelect.innerHTML = '<option value="">No drawings</option>';
+            } else {
+                drawingSelect.innerHTML = '<option value="">Select a drawing...</option>' + 
+                    data.drawings.map(d => `<option value="${d.id}">${d.name}</option>`).join('');
+            }
+            
+            document.querySelectorAll('.project-item').forEach(el => {
+                el.classList.remove('active');
+                if (parseInt(el.getAttribute('data-project-id')) === projectId) {
+                    el.classList.add('active');
                 }
-                const data = await response.json();
-                
-                currentProject = data.project;
-                allDrawings = data.drawings;
-                document.getElementById('currentProject').textContent = currentProject.name;
-                
-                // Load WBS categories for this project
-                await loadWBSCategories();
-                
-                // Update dropdown
-                const drawingSelect = document.getElementById('drawingSelect');
-                if (data.drawings.length === 0) {
-                    drawingSelect.innerHTML = '<option value="">No drawings - Upload some!</option>';
-                } else {
-                    drawingSelect.innerHTML = '<option value="">Select a drawing...</option>' + 
-                        data.drawings.map(d => `
-                            <option value="${d.id}">${d.name} (${d.page_count} pages)</option>
-                        `).join('');
-                }
-                
-                // Update active project in sidebar
-                document.querySelectorAll('.project-item').forEach(el => {
-                    el.classList.remove('active');
-                    if (parseInt(el.getAttribute('data-project-id')) === projectId) {
-                        el.classList.add('active');
-                    }
-                });
-            } catch (error) {
-                console.error('Error selecting project:', error);
-                alert('Error loading project: ' + error.message);
+            });
+        }
+        
+        async function renameProject(projectId, currentName) {
+            const newName = prompt('Enter new project name:', currentName);
+            if (!newName || newName === currentName) return;
+            
+            await fetch(`/api/projects/${projectId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name: newName })
+            });
+            
+            await loadProjects();
+            if (currentProject && currentProject.id === projectId) {
+                currentProject.name = newName;
+                document.getElementById('currentProject').textContent = newName;
             }
         }
-
+        
+        async function deleteProjectConfirm(projectId) {
+            if (!confirm('Delete this project? All drawings and data will be permanently deleted!')) return;
+            
+            await fetch(`/api/projects/${projectId}`, { method: 'DELETE' });
+            
+            if (currentProject && currentProject.id === projectId) {
+                currentProject = null;
+                currentDrawing = null;
+                document.getElementById('currentProject').textContent = 'No project selected';
+                document.getElementById('drawingSelect').innerHTML = '<option value="">No drawings</option>';
+                document.getElementById('canvasInstructions').style.display = 'block';
+                canvas.style.display = 'none';
+            }
+            
+            await loadProjects();
+        }
+        
         async function loadWBSCategories() {
             if (!currentProject) return;
             
-            try {
-                const response = await fetch(`/api/projects/${currentProject.id}/wbs`);
-                if (!response.ok) {
-                    throw new Error('Failed to load WBS categories');
-                }
-                wbsCategories = await response.json();
-                
-                const wbsSelect = document.getElementById('wbsSelect');
-                wbsSelect.innerHTML = '<option value="">Select WBS category...</option>';
-                
-                // Build hierarchical dropdown
-                function addOptions(categories, level = 0) {
-                    categories.forEach(cat => {
-                        const indent = '\u00A0\u00A0'.repeat(level * 2);
-                        const prefix = level > 0 ? '└ ' : '';
-                        const option = document.createElement('option');
-                        option.value = cat.id;
-                        option.textContent = `${indent}${prefix}${cat.name}`;
-                        if (level > 0) {
-                            option.style.fontSize = '13px';
-                        }
-                        wbsSelect.appendChild(option);
-                        
-                        // Add children recursively
-                        const children = wbsCategories.filter(c => c.parent_id === cat.id);
-                        if (children.length > 0) {
-                            addOptions(children, level + 1);
-                        }
-                    });
-                }
-                
-                // Start with top-level categories
-                const topLevel = wbsCategories.filter(c => c.parent_id === null);
-                addOptions(topLevel);
-            } catch (error) {
-                console.error('Error loading WBS categories:', error);
-            }
-        }
-
-        async function handleWBSChange() {
+            const response = await fetch(`/api/projects/${currentProject.id}/wbs`);
+            wbsCategories = await response.json();
+            
             const wbsSelect = document.getElementById('wbsSelect');
-            const newCategoryId = parseInt(wbsSelect.value) || null;
+            wbsSelect.innerHTML = '<option value="">Select WBS...</option>';
             
-            // If no drawing or no items, just update the selection
-            if (!currentDrawing || currentDetectedItems.length === 0) {
-                currentWBSCategory = newCategoryId;
-                return;
-            }
-            
-            // If changing from one category to another (not initial selection)
-            if (currentWBSCategory !== newCategoryId && newCategoryId !== null) {
-                const categoryName = wbsSelect.options[wbsSelect.selectedIndex].text.trim();
-                
-                if (!confirm(`Assign all ${currentDetectedItems.length} items on this page to "${categoryName}"?`)) {
-                    // Reset to previous selection
-                    wbsSelect.value = currentWBSCategory || '';
-                    return;
-                }
-                
-                try {
-                    const itemIds = currentDetectedItems.map(item => item.id);
-                    const response = await fetch('/api/items/bulk-update-wbs', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            item_ids: itemIds,
-                            wbs_category_id: newCategoryId
-                        })
-                    });
-                    
-                    if (!response.ok) {
-                        throw new Error('Failed to assign items to WBS');
-                    }
-                    
-                    currentWBSCategory = newCategoryId;
-                    await loadTakeoff();
-                    
-                    // Show success message
-                    showSuccessToast(`✓ ${currentDetectedItems.length} items assigned to ${categoryName}`);
-                } catch (error) {
-                    console.error('Error assigning items to WBS:', error);
-                    alert('Error: ' + error.message);
-                    // Reset to previous selection
-                    wbsSelect.value = currentWBSCategory || '';
-                }
-            } else {
-                currentWBSCategory = newCategoryId;
-            }
-        }
-
-        function showSuccessToast(message) {
-            const toast = document.createElement('div');
-            toast.className = 'success-toast';
-            toast.textContent = message;
-            document.body.appendChild(toast);
-            setTimeout(() => toast.remove(), 3000);
-        }
-
-        async function showManageWBSModal() {
-            if (!currentProject) {
-                alert('Please select a project first');
-                return;
-            }
-            
-            await loadWBSCategories();
-            renderWBSList();
-            document.getElementById('manageWBSModal').style.display = 'block';
-        }
-
-        function renderWBSList() {
-            const list = document.getElementById('wbsList');
-            const parentSelect = document.getElementById('newWBSParent');
-            
-            if (wbsCategories.length === 0) {
-                list.innerHTML = '<p style="color: #95a5a6; padding: 10px;">No WBS categories</p>';
-                parentSelect.innerHTML = '<option value="">Top Level Category</option>';
-                return;
-            }
-            
-            // Update parent dropdown with hierarchical display
-            parentSelect.innerHTML = '<option value="">Top Level Category</option>';
-            
-            function addParentOptions(categories, level = 0) {
+            function addOptions(categories, level = 0) {
                 categories.forEach(cat => {
                     const indent = '\u00A0\u00A0'.repeat(level * 2);
                     const prefix = level > 0 ? '└ ' : '';
                     const option = document.createElement('option');
                     option.value = cat.id;
                     option.textContent = `${indent}${prefix}${cat.name}`;
-                    parentSelect.appendChild(option);
+                    wbsSelect.appendChild(option);
                     
                     const children = wbsCategories.filter(c => c.parent_id === cat.id);
                     if (children.length > 0) {
-                        addParentOptions(children, level + 1);
+                        addOptions(children, level + 1);
                     }
                 });
             }
             
             const topLevel = wbsCategories.filter(c => c.parent_id === null);
-            addParentOptions(topLevel);
+            addOptions(topLevel);
+        }
+        
+        async function handleWBSChange() {
+            const wbsSelect = document.getElementById('wbsSelect');
+            const newCategoryId = parseInt(wbsSelect.value) || null;
             
-            // Render hierarchical list
+            if (!currentDrawing || currentDetectedItems.length === 0) {
+                currentWBSCategory = newCategoryId;
+                return;
+            }
+            
+            if (currentWBSCategory !== newCategoryId && newCategoryId !== null) {
+                const categoryName = wbsSelect.options[wbsSelect.selectedIndex].text.trim();
+                
+                if (!confirm(`Assign all ${currentDetectedItems.length} items to "${categoryName}"?`)) {
+                    wbsSelect.value = currentWBSCategory || '';
+                    return;
+                }
+                
+                const itemIds = currentDetectedItems.map(item => item.id);
+                await fetch('/api/items/bulk-update-wbs', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ item_ids: itemIds, wbs_category_id: newCategoryId })
+                });
+                
+                currentWBSCategory = newCategoryId;
+                await loadTakeoff();
+                showSuccessToast(`✓ ${currentDetectedItems.length} items assigned`);
+            } else {
+                currentWBSCategory = newCategoryId;
+            }
+        }
+        
+        // Scale management functions
+        async function loadCommonScales() {
+            const response = await fetch('/api/scales/common');
+            commonScales = await response.json();
+        }
+        
+        async function loadScales() {
+            if (!currentProject || !currentDrawing) return;
+            
+            try {
+                // Load custom scales for this project
+                const customResponse = await fetch(`/api/projects/${currentProject.id}/scales/custom`);
+                customScales = await customResponse.json();
+                
+                // Load scale for current page of current drawing
+                const pageScaleResponse = await fetch(`/api/drawings/${currentDrawing}/page/${currentPage}/scale`);
+                const pageScaleData = await pageScaleResponse.json();
+                
+                console.log('Loading scale for drawing:', currentDrawing, 'page:', currentPage);
+                console.log('Received scale data:', pageScaleData);
+                
+                // Check if we got actual scale data with scale_id
+                if (pageScaleData && Object.keys(pageScaleData).length > 0 && pageScaleData.scale_id) {
+                    currentPageScale = pageScaleData;
+                    console.log('Set current scale to:', currentPageScale.scale_name, '(ID:', currentPageScale.scale_id, ')');
+                } else {
+                    currentPageScale = null;
+                    console.log('No scale set for this page');
+                }
+                
+                updateScaleDropdown();
+                await loadScaleZones();
+            } catch (error) {
+                console.error('Error loading scales:', error);
+            }
+        }
+        
+        function updateScaleDropdown() {
+            const scaleSelect = document.getElementById('scaleSelect');
+            scaleSelect.innerHTML = '<option value="">No scale set</option>';
+            
+            const archGroup = document.createElement('optgroup');
+            archGroup.label = 'Architectural';
+            commonScales.filter(s => s.type === 'architectural').forEach(scale => {
+                const option = document.createElement('option');
+                option.value = scale.id;
+                option.textContent = scale.name;
+                archGroup.appendChild(option);
+            });
+            scaleSelect.appendChild(archGroup);
+            
+            const engGroup = document.createElement('optgroup');
+            engGroup.label = 'Engineering';
+            commonScales.filter(s => s.type === 'engineering').forEach(scale => {
+                const option = document.createElement('option');
+                option.value = scale.id;
+                option.textContent = scale.name;
+                engGroup.appendChild(option);
+            });
+            scaleSelect.appendChild(engGroup);
+            
+            const metricGroup = document.createElement('optgroup');
+            metricGroup.label = 'Metric';
+            commonScales.filter(s => s.type === 'metric').forEach(scale => {
+                const option = document.createElement('option');
+                option.value = scale.id;
+                option.textContent = scale.name;
+                metricGroup.appendChild(option);
+            });
+            scaleSelect.appendChild(metricGroup);
+            
+            if (customScales.length > 0) {
+                const customGroup = document.createElement('optgroup');
+                customGroup.label = 'Custom Scales';
+                customScales.forEach(scale => {
+                    const option = document.createElement('option');
+                    option.value = `custom_${scale.id}`;
+                    option.textContent = scale.name;
+                    customGroup.appendChild(option);
+                });
+                scaleSelect.appendChild(customGroup);
+            }
+            
+            // Set current scale value - this is the critical part
+            if (currentPageScale && currentPageScale.scale_id) {
+                scaleSelect.value = currentPageScale.scale_id;
+                console.log('Setting dropdown to:', currentPageScale.scale_id, '- found option:', scaleSelect.value === currentPageScale.scale_id);
+                
+                // Double-check the value was set correctly
+                if (scaleSelect.value !== currentPageScale.scale_id) {
+                    console.error('WARNING: Failed to set scale dropdown! Wanted:', currentPageScale.scale_id, 'but got:', scaleSelect.value);
+                }
+            } else {
+                scaleSelect.value = '';
+                console.log('Setting dropdown to empty (no scale)');
+            }
+        }
+        
+        async function handleScaleChange() {
+            if (!currentDrawing) return;
+            
+            const scaleSelect = document.getElementById('scaleSelect');
+            const scaleId = scaleSelect.value;
+            
+            if (!scaleId) {
+                await setPageScale(null, null, null);
+                return;
+            }
+            
+            let scaleName = '';
+            let pixelsPerUnit = null;
+            
+            if (scaleId.startsWith('custom_')) {
+                const customId = parseInt(scaleId.replace('custom_', ''));
+                const custom = customScales.find(s => s.id === customId);
+                if (custom) {
+                    scaleName = custom.name;
+                    pixelsPerUnit = custom.pixels_per_unit;
+                }
+            } else {
+                const common = commonScales.find(s => s.id === scaleId);
+                if (common) scaleName = common.name;
+            }
+            
+            await setPageScale(scaleId, scaleName, pixelsPerUnit);
+            showSuccessToast(`✓ Scale set: ${scaleName}`);
+        }
+        
+        async function setPageScale(scaleId, scaleName, pixelsPerUnit) {
+            try {
+                console.log('Saving scale for drawing:', currentDrawing, 'page:', currentPage);
+                console.log('Scale ID:', scaleId, 'Name:', scaleName);
+                
+                const response = await fetch(`/api/drawings/${currentDrawing}/page/${currentPage}/scale`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        scale_id: scaleId, 
+                        scale_name: scaleName, 
+                        pixels_per_unit: pixelsPerUnit 
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Failed to save scale');
+                }
+                
+                const result = await response.json();
+                console.log('Scale saved successfully:', result);
+                
+                // Reload scales to update current state
+                await loadScales();
+                updateDetectionInfo();
+            } catch (error) {
+                console.error('Error setting scale:', error);
+                alert('Error saving scale to database');
+            }
+        }
+        
+        function showCalibrateModal() {
+            if (!currentDrawing) {
+                alert('Please select a drawing first');
+                return;
+            }
+            
+            document.getElementById('calibrateModal').style.display = 'block';
+            calibrationPoints = [];
+            
+            if (currentImage && calibrationCanvas) {
+                const scale = Math.min(400 / currentImage.width, 300 / currentImage.height);
+                const w = currentImage.width * scale;
+                const h = currentImage.height * scale;
+                calibrationCanvas.width = w;
+                calibrationCanvas.height = h;
+                calibrationCtx.drawImage(currentImage, 0, 0, w, h);
+            }
+        }
+        
+        function handleCalibrationClick(event) {
+            const rect = calibrationCanvas.getBoundingClientRect();
+            const x = event.clientX - rect.left;
+            const y = event.clientY - rect.top;
+            
+            calibrationPoints.push({ x, y });
+            
+            calibrationCtx.fillStyle = '#e74c3c';
+            calibrationCtx.beginPath();
+            calibrationCtx.arc(x, y, 5, 0, 2 * Math.PI);
+            calibrationCtx.fill();
+            
+            if (calibrationPoints.length === 2) {
+                calibrationCtx.strokeStyle = '#e74c3c';
+                calibrationCtx.lineWidth = 2;
+                calibrationCtx.beginPath();
+                calibrationCtx.moveTo(calibrationPoints[0].x, calibrationPoints[0].y);
+                calibrationCtx.lineTo(calibrationPoints[1].x, calibrationPoints[1].y);
+                calibrationCtx.stroke();
+                
+                const dx = calibrationPoints[1].x - calibrationPoints[0].x;
+                const dy = calibrationPoints[1].y - calibrationPoints[0].y;
+                const pixelDistance = Math.sqrt(dx * dx + dy * dy);
+                
+                document.getElementById('calibrationResult').style.display = 'block';
+                document.getElementById('calibrationResultText').textContent = 
+                    `Measured ${pixelDistance.toFixed(2)} pixels. Enter the known distance.`;
+            } else if (calibrationPoints.length > 2) {
+                resetCalibration();
+                handleCalibrationClick(event);
+            }
+        }
+        
+        function resetCalibration() {
+            calibrationPoints = [];
+            document.getElementById('calibrationResult').style.display = 'none';
+            if (currentImage && calibrationCanvas) {
+                const scale = Math.min(400 / currentImage.width, 300 / currentImage.height);
+                const w = currentImage.width * scale;
+                const h = currentImage.height * scale;
+                calibrationCanvas.width = w;
+                calibrationCanvas.height = h;
+                calibrationCtx.drawImage(currentImage, 0, 0, w, h);
+            }
+        }
+        
+        async function applyCalibration() {
+            if (calibrationPoints.length !== 2) {
+                alert('Please draw a line first');
+                return;
+            }
+            
+            const knownDistance = parseFloat(document.getElementById('knownDistance').value);
+            if (!knownDistance || knownDistance <= 0) {
+                alert('Please enter a valid distance');
+                return;
+            }
+            
+            const unit = document.getElementById('distanceUnit').value;
+            const scaleName = document.getElementById('scaleName').value;
+            
+            const dx = calibrationPoints[1].x - calibrationPoints[0].x;
+            const dy = calibrationPoints[1].y - calibrationPoints[0].y;
+            const pixelDistance = Math.sqrt(dx * dx + dy * dy);
+            
+            const canvasScale = currentImage.width / calibrationCanvas.width;
+            const actualPixelDistance = pixelDistance * canvasScale;
+            
+            const response = await fetch(`/api/drawings/${currentDrawing}/calibrate`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    page_number: currentPage,
+                    pixel_distance: actualPixelDistance,
+                    real_distance: knownDistance,
+                    unit: unit,
+                    name: scaleName || `Custom ${unit} scale`
+                })
+            });
+            
+            const result = await response.json();
+            await loadScales();
+            closeModals();
+            showSuccessToast('✓ Scale calibrated!');
+            
+            if (result.scale_id) {
+                document.getElementById('scaleSelect').value = `custom_${result.scale_id}`;
+                await handleScaleChange();
+            }
+        }
+        
+        function toggleScaleZoneMode() {
+            if (!currentDrawing) {
+                alert('Please select a drawing first');
+                return;
+            }
+            
+            isDrawingZone = !isDrawingZone;
+            const btn = document.getElementById('scaleZoneBtn');
+            const info = document.getElementById('drawingModeInfo');
+            
+            if (isDrawingZone) {
+                btn.style.background = '#e74c3c';
+                info.style.display = 'block';
+                canvas.style.cursor = 'crosshair';
+            } else {
+                btn.style.background = '#95a5a6';
+                info.style.display = 'none';
+                canvas.style.cursor = 'default';
+            }
+        }
+        
+        async function loadScaleZones() {
+            if (!currentDrawing) return;
+            
+            const response = await fetch(`/api/drawings/${currentDrawing}/page/${currentPage}/scale-zones`);
+            scaleZones = await response.json();
+            redrawCanvas();
+            updateDetectionInfo();
+        }
+        
+        async function showScaleZonesModal() {
+            if (!currentDrawing) {
+                alert('Please select a drawing first');
+                return;
+            }
+            
+            await loadScaleZones();
+            
+            const zonesList = document.getElementById('zonesList');
+            if (scaleZones.length === 0) {
+                zonesList.innerHTML = '<p style="color: #95a5a6;">No zones defined</p>';
+            } else {
+                zonesList.innerHTML = scaleZones.map(zone => `
+                    <div class="zone-list-item">
+                        <div>
+                            <strong>${zone.name}</strong><br>
+                            <span style="font-size: 12px; color: #7f8c8d;">
+                                Scale: ${zone.scale_name || 'None set'}
+                            </span>
+                        </div>
+                        <div style="display: flex; gap: 5px;">
+                            <button class="small" onclick="editZoneScale(${zone.id}, '${zone.name.replace(/'/g, "\\'")}')">Change Scale</button>
+                            <button class="small danger" onclick="deleteScaleZone(${zone.id})">Delete</button>
+                        </div>
+                    </div>
+                `).join('');
+            }
+            
+            document.getElementById('scaleZonesModal').style.display = 'block';
+        }
+        
+        async function editZoneScale(zoneId, zoneName) {
+            const zone = scaleZones.find(z => z.id === zoneId);
+            if (!zone) return;
+            
+            // Build scale options
+            let options = '<option value="">No scale</option>';
+            
+            options += '<optgroup label="Architectural">';
+            commonScales.filter(s => s.type === 'architectural').forEach(scale => {
+                const selected = zone.scale_id === scale.id ? 'selected' : '';
+                options += `<option value="${scale.id}" ${selected}>${scale.name}</option>`;
+            });
+            options += '</optgroup>';
+            
+            options += '<optgroup label="Engineering">';
+            commonScales.filter(s => s.type === 'engineering').forEach(scale => {
+                const selected = zone.scale_id === scale.id ? 'selected' : '';
+                options += `<option value="${scale.id}" ${selected}>${scale.name}</option>`;
+            });
+            options += '</optgroup>';
+            
+            options += '<optgroup label="Metric">';
+            commonScales.filter(s => s.type === 'metric').forEach(scale => {
+                const selected = zone.scale_id === scale.id ? 'selected' : '';
+                options += `<option value="${scale.id}" ${selected}>${scale.name}</option>`;
+            });
+            options += '</optgroup>';
+            
+            if (customScales.length > 0) {
+                options += '<optgroup label="Custom Scales">';
+                customScales.forEach(scale => {
+                    const scaleValue = `custom_${scale.id}`;
+                    const selected = zone.scale_id === scaleValue ? 'selected' : '';
+                    options += `<option value="${scaleValue}" ${selected}>${scale.name}</option>`;
+                });
+                options += '</optgroup>';
+            }
+            
+            const selectHtml = `
+                <div style="margin: 15px 0;">
+                    <label style="display: block; margin-bottom: 5px;">Select new scale for "${zoneName}":</label>
+                    <select id="tempZoneScaleSelect" style="width: 100%; padding: 8px;">
+                        ${options}
+                    </select>
+                </div>
+                <div style="display: flex; gap: 10px; margin-top: 10px;">
+                    <button onclick="saveZoneScale(${zoneId})">Save</button>
+                    <button onclick="closeModals(); showScaleZonesModal();" class="secondary">Cancel</button>
+                </div>
+            `;
+            
+            const zonesList = document.getElementById('zonesList');
+            zonesList.innerHTML = selectHtml;
+        }
+        
+        async function saveZoneScale(zoneId) {
+            const selectedScale = document.getElementById('tempZoneScaleSelect').value;
+            
+            let zoneScaleId = selectedScale || null;
+            let zoneScaleName = null;
+            let zonePixelsPerUnit = null;
+            
+            if (selectedScale) {
+                if (selectedScale.startsWith('custom_')) {
+                    const customId = parseInt(selectedScale.replace('custom_', ''));
+                    const custom = customScales.find(s => s.id === customId);
+                    if (custom) {
+                        zoneScaleName = custom.name;
+                        zonePixelsPerUnit = custom.pixels_per_unit;
+                    }
+                } else {
+                    const common = commonScales.find(s => s.id === selectedScale);
+                    if (common) {
+                        zoneScaleName = common.name;
+                    }
+                }
+            }
+            
+            try {
+                await fetch(`/api/scale-zones/${zoneId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        scale_id: zoneScaleId,
+                        scale_name: zoneScaleName,
+                        pixels_per_unit: zonePixelsPerUnit
+                    })
+                });
+                
+                await loadScaleZones();
+                showSuccessToast('✓ Zone scale updated');
+                closeModals();
+                showScaleZonesModal();
+            } catch (error) {
+                console.error('Error updating zone scale:', error);
+                alert('Error updating zone scale');
+            }
+        }
+        
+        async function deleteScaleZone(zoneId) {
+            if (!confirm('Delete this zone?')) return;
+            
+            await fetch(`/api/scale-zones/${zoneId}`, { method: 'DELETE' });
+            await loadScaleZones();
+            showScaleZonesModal();
+        }
+        
+        // Drawing context menu
+        function showDrawingContextMenu(event) {
+            event.preventDefault();
+            
+            const drawingSelect = document.getElementById('drawingSelect');
+            if (!drawingSelect.value) return;
+            
+            const contextMenu = document.getElementById('contextMenu');
+            contextMenu.style.display = 'block';
+            contextMenu.style.left = event.pageX + 'px';
+            contextMenu.style.top = event.pageY + 'px';
+        }
+        
+        function hideContextMenu() {
+            document.getElementById('contextMenu').style.display = 'none';
+        }
+        
+        async function renameSelectedDrawing() {
+            hideContextMenu();
+            
+            const drawingSelect = document.getElementById('drawingSelect');
+            const drawingId = parseInt(drawingSelect.value);
+            if (!drawingId) return;
+            
+            const drawing = allDrawings.find(d => d.id === drawingId);
+            if (!drawing) return;
+            
+            const newName = prompt('Enter new drawing name:', drawing.name);
+            if (!newName || newName === drawing.name) return;
+            
+            await fetch(`/api/drawings/${drawingId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name: newName })
+            });
+            
+            await selectProject(currentProject.id);
+        }
+        
+        async function deleteSelectedDrawing() {
+            hideContextMenu();
+            
+            const drawingSelect = document.getElementById('drawingSelect');
+            const drawingId = parseInt(drawingSelect.value);
+            if (!drawingId) return;
+            
+            if (!confirm('Delete this drawing? All detected items will be permanently deleted!')) return;
+            
+            await fetch(`/api/drawings/${drawingId}`, { method: 'DELETE' });
+            
+            if (currentDrawing === drawingId) {
+                currentDrawing = null;
+                currentImage = null;
+                document.getElementById('canvasInstructions').style.display = 'block';
+                canvas.style.display = 'none';
+            }
+            
+            await selectProject(currentProject.id);
+        }
+        
+        // Canvas and drawing functions
+        function handleDrawingChange() {
+            const drawingSelect = document.getElementById('drawingSelect');
+            const drawingId = parseInt(drawingSelect.value);
+            if (drawingId) selectDrawing(drawingId);
+        }
+        
+        async function selectDrawing(drawingId) {
+            console.log('=== Selecting Drawing:', drawingId, '===');
+            currentDrawing = drawingId;
+            currentPage = 0; // Always start at page 0
+            
+            // Load drawing image first
+            await loadDrawingPage();
+            
+            // Then load scales for this specific drawing/page
+            await loadScales();
+            
+            // Finally load takeoff data
+            await loadTakeoff();
+            
+            console.log('=== Drawing Selection Complete ===');
+        }
+        
+        async function loadDrawingPage() {
+            const img = new Image();
+            img.onload = function() {
+                currentImage = img;
+                canvas.width = img.width;
+                canvas.height = img.height;
+                zoomLevel = 1.0;
+                panX = 0;
+                panY = 0;
+                redrawCanvas();
+                document.getElementById('canvasInstructions').style.display = 'none';
+                canvas.style.display = 'block';
+                loadDetectedItems();
+            };
+            img.src = `/api/drawings/${currentDrawing}/page/${currentPage}/image`;
+        }
+        
+        async function loadDetectedItems() {
+            const response = await fetch(`/api/drawings/${currentDrawing}/items?page=${currentPage}`);
+            currentDetectedItems = await response.json();
+            redrawCanvas();
+            updateDetectionInfo();
+        }
+        
+        function redrawCanvas() {
+            if (!currentImage) return;
+            
+            ctx.setTransform(1, 0, 0, 1, 0, 0);
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.translate(panX, panY);
+            ctx.scale(zoomLevel, zoomLevel);
+            ctx.drawImage(currentImage, 0, 0);
+            
+            // Draw scale zones
+            scaleZones.forEach(zone => {
+                ctx.strokeStyle = '#3498db';
+                ctx.lineWidth = 2 / zoomLevel;
+                ctx.setLineDash([10 / zoomLevel, 5 / zoomLevel]);
+                ctx.strokeRect(zone.x, zone.y, zone.width, zone.height);
+                ctx.setLineDash([]);
+                ctx.fillStyle = 'rgba(52, 152, 219, 0.1)';
+                ctx.fillRect(zone.x, zone.y, zone.width, zone.height);
+                
+                // Draw zone label with name and scale
+                ctx.fillStyle = '#3498db';
+                ctx.font = `bold ${12 / zoomLevel}px Arial`;
+                ctx.fillText(zone.name, zone.x + 5 / zoomLevel, zone.y + 15 / zoomLevel);
+                
+                if (zone.scale_name) {
+                    ctx.font = `${10 / zoomLevel}px Arial`;
+                    ctx.fillText(zone.scale_name, zone.x + 5 / zoomLevel, zone.y + 28 / zoomLevel);
+                }
+            });
+            
+            // Draw current zone being drawn
+            if (currentZoneRect && currentZoneRect.width && currentZoneRect.height) {
+                ctx.strokeStyle = '#e74c3c';
+                ctx.lineWidth = 2 / zoomLevel;
+                ctx.setLineDash([5 / zoomLevel]);
+                ctx.strokeRect(zoneStartX, zoneStartY, currentZoneRect.width, currentZoneRect.height);
+                ctx.setLineDash([]);
+            }
+            
+            // Draw detected items
+            currentDetectedItems.forEach(item => {
+                ctx.strokeStyle = item.verified ? '#2ecc71' : '#e74c3c';
+                ctx.lineWidth = 2 / zoomLevel;
+                ctx.strokeRect(item.x, item.y, item.width, item.height);
+                ctx.fillStyle = item.verified ? '#2ecc71' : '#e74c3c';
+                ctx.font = `${12 / zoomLevel}px Arial`;
+                ctx.fillText(item.item_type, item.x, item.y - 5 / zoomLevel);
+            });
+        }
+        
+        function updateDetectionInfo() {
+            const scaleName = currentPageScale?.scale_name || 'Not set';
+            document.getElementById('detectionInfo').innerHTML = `
+                <p style="font-size: 13px;">Scale: ${scaleName}</p>
+                <p style="font-size: 13px;">Items: ${currentDetectedItems.length}</p>
+                <p style="font-size: 13px;">Zones: ${scaleZones.length}</p>
+                <p style="font-size: 13px;">Zoom: ${Math.round(zoomLevel * 100)}%</p>
+            `;
+        }
+        
+        function handleMouseDown(event) {
+            if (isDrawingZone && event.button === 0) {
+                const rect = canvas.getBoundingClientRect();
+                const scaleX = canvas.width / rect.width;
+                const scaleY = canvas.height / rect.height;
+                const canvasX = (event.clientX - rect.left) * scaleX;
+                const canvasY = (event.clientY - rect.top) * scaleY;
+                zoneStartX = (canvasX - panX) / zoomLevel;
+                zoneStartY = (canvasY - panY) / zoomLevel;
+                currentZoneRect = { startX: zoneStartX, startY: zoneStartY };
+            } else if (event.button === 1) {
+                event.preventDefault();
+                isPanning = true;
+                const rect = canvas.getBoundingClientRect();
+                const scaleX = canvas.width / rect.width;
+                const scaleY = canvas.height / rect.height;
+                lastMouseX = (event.clientX - rect.left) * scaleX;
+                lastMouseY = (event.clientY - rect.top) * scaleY;
+                canvas.style.cursor = 'grabbing';
+            }
+        }
+        
+        function handleMouseMove(event) {
+            if (isDrawingZone && currentZoneRect) {
+                const rect = canvas.getBoundingClientRect();
+                const scaleX = canvas.width / rect.width;
+                const scaleY = canvas.height / rect.height;
+                const canvasX = (event.clientX - rect.left) * scaleX;
+                const canvasY = (event.clientY - rect.top) * scaleY;
+                const currentX = (canvasX - panX) / zoomLevel;
+                const currentY = (canvasY - panY) / zoomLevel;
+                currentZoneRect.width = currentX - zoneStartX;
+                currentZoneRect.height = currentY - zoneStartY;
+                redrawCanvas();
+            } else if (isPanning && currentImage) {
+                const rect = canvas.getBoundingClientRect();
+                const scaleX = canvas.width / rect.width;
+                const scaleY = canvas.height / rect.height;
+                const currentMouseX = (event.clientX - rect.left) * scaleX;
+                const currentMouseY = (event.clientY - rect.top) * scaleY;
+                panX += currentMouseX - lastMouseX;
+                panY += currentMouseY - lastMouseY;
+                lastMouseX = currentMouseX;
+                lastMouseY = currentMouseY;
+                redrawCanvas();
+            }
+        }
+        
+        async function handleMouseUp(event) {
+            if (isDrawingZone && currentZoneRect && event.button === 0) {
+                // Prevent double creation
+                if (isCreatingZone) {
+                    console.log('Zone creation already in progress, ignoring');
+                    return;
+                }
+                
+                const width = Math.abs(currentZoneRect.width);
+                const height = Math.abs(currentZoneRect.height);
+                
+                if (width > 10 && height > 10) {
+                    const x = currentZoneRect.width < 0 ? zoneStartX + currentZoneRect.width : zoneStartX;
+                    const y = currentZoneRect.height < 0 ? zoneStartY + currentZoneRect.height : zoneStartY;
+                    
+                    // Store pending zone coordinates
+                    pendingZone = { x, y, width, height };
+                    
+                    // Show create zone modal
+                    showCreateZoneModal();
+                } else {
+                    console.log('Zone too small, ignoring');
+                }
+                
+                currentZoneRect = null;
+                redrawCanvas();
+            } else if (event.button === 1 || isPanning) {
+                isPanning = false;
+                canvas.style.cursor = isDrawingZone ? 'crosshair' : 'default';
+            }
+        }
+        
+        function showCreateZoneModal() {
+            // Populate zone name with default
+            document.getElementById('zoneNameInput').value = `Zone ${scaleZones.length + 1}`;
+            
+            // Populate scale dropdown
+            const zoneScaleSelect = document.getElementById('zoneScaleSelect');
+            zoneScaleSelect.innerHTML = '<option value="inherit">Inherit from Page Scale' + 
+                (currentPageScale ? ` (${currentPageScale.scale_name})` : ' (None set)') + 
+                '</option>';
+            
+            // Add architectural scales
+            const archGroup = document.createElement('optgroup');
+            archGroup.label = 'Architectural';
+            commonScales.filter(s => s.type === 'architectural').forEach(scale => {
+                const option = document.createElement('option');
+                option.value = scale.id;
+                option.textContent = scale.name;
+                archGroup.appendChild(option);
+            });
+            zoneScaleSelect.appendChild(archGroup);
+            
+            // Add engineering scales
+            const engGroup = document.createElement('optgroup');
+            engGroup.label = 'Engineering';
+            commonScales.filter(s => s.type === 'engineering').forEach(scale => {
+                const option = document.createElement('option');
+                option.value = scale.id;
+                option.textContent = scale.name;
+                engGroup.appendChild(option);
+            });
+            zoneScaleSelect.appendChild(engGroup);
+            
+            // Add metric scales
+            const metricGroup = document.createElement('optgroup');
+            metricGroup.label = 'Metric';
+            commonScales.filter(s => s.type === 'metric').forEach(scale => {
+                const option = document.createElement('option');
+                option.value = scale.id;
+                option.textContent = scale.name;
+                metricGroup.appendChild(option);
+            });
+            zoneScaleSelect.appendChild(metricGroup);
+            
+            // Add custom scales
+            if (customScales.length > 0) {
+                const customGroup = document.createElement('optgroup');
+                customGroup.label = 'Custom Scales';
+                customScales.forEach(scale => {
+                    const option = document.createElement('option');
+                    option.value = `custom_${scale.id}`;
+                    option.textContent = scale.name;
+                    customGroup.appendChild(option);
+                });
+                zoneScaleSelect.appendChild(customGroup);
+            }
+            
+            // Show modal
+            document.getElementById('createZoneModal').style.display = 'block';
+        }
+        
+        async function confirmCreateZone() {
+            if (isCreatingZone) {
+                console.log('Zone creation already in progress');
+                return;
+            }
+            
+            if (!pendingZone) {
+                console.log('No pending zone');
+                return;
+            }
+            
+            isCreatingZone = true;
+            
+            const zoneName = document.getElementById('zoneNameInput').value.trim();
+            const selectedScale = document.getElementById('zoneScaleSelect').value;
+            
+            if (!zoneName) {
+                alert('Please enter a zone name');
+                isCreatingZone = false;
+                return;
+            }
+            
+            let zoneScaleId = null;
+            let zoneScaleName = null;
+            let zonePixelsPerUnit = null;
+            
+            // Determine scale for zone
+            if (selectedScale === 'inherit') {
+                // Inherit from page scale
+                if (currentPageScale) {
+                    zoneScaleId = currentPageScale.scale_id;
+                    zoneScaleName = currentPageScale.scale_name;
+                    zonePixelsPerUnit = currentPageScale.pixels_per_unit;
+                }
+            } else {
+                // Use selected scale
+                if (selectedScale.startsWith('custom_')) {
+                    const customId = parseInt(selectedScale.replace('custom_', ''));
+                    const custom = customScales.find(s => s.id === customId);
+                    if (custom) {
+                        zoneScaleId = selectedScale;
+                        zoneScaleName = custom.name;
+                        zonePixelsPerUnit = custom.pixels_per_unit;
+                    }
+                } else {
+                    const common = commonScales.find(s => s.id === selectedScale);
+                    if (common) {
+                        zoneScaleId = selectedScale;
+                        zoneScaleName = common.name;
+                    }
+                }
+            }
+            
+            try {
+                console.log('Creating zone:', zoneName, 'with scale:', zoneScaleName);
+                
+                const response = await fetch(`/api/drawings/${currentDrawing}/page/${currentPage}/scale-zones`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        name: zoneName,
+                        x: pendingZone.x,
+                        y: pendingZone.y,
+                        width: pendingZone.width,
+                        height: pendingZone.height,
+                        scale_id: zoneScaleId,
+                        scale_name: zoneScaleName,
+                        pixels_per_unit: zonePixelsPerUnit
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Failed to create zone');
+                }
+                
+                await loadScaleZones();
+                closeModals();
+                showSuccessToast(`✓ Zone "${zoneName}" created`);
+            } catch (error) {
+                console.error('Error creating zone:', error);
+                alert('Error creating zone: ' + error.message);
+            } finally {
+                pendingZone = null;
+                isCreatingZone = false;
+            }
+        }
+        
+        function cancelCreateZone() {
+            pendingZone = null;
+            isCreatingZone = false;
+            closeModals();
+        }
+        
+        function handleZoom(event) {
+            event.preventDefault();
+            if (!currentImage) return;
+            
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+            const canvasX = (event.clientX - rect.left) * scaleX;
+            const canvasY = (event.clientY - rect.top) * scaleY;
+            const pointX = (canvasX - panX) / zoomLevel;
+            const pointY = (canvasY - panY) / zoomLevel;
+            const zoomDelta = event.deltaY > 0 ? 0.9 : 1.1;
+            const newZoom = Math.min(Math.max(0.1, zoomLevel * zoomDelta), 10);
+            panX = canvasX - pointX * newZoom;
+            panY = canvasY - pointY * newZoom;
+            zoomLevel = newZoom;
+            redrawCanvas();
+            updateDetectionInfo();
+        }
+        
+        function resetZoom() {
+            if (!currentImage) return;
+            zoomLevel = 1.0;
+            panX = 0;
+            panY = 0;
+            redrawCanvas();
+            updateDetectionInfo();
+        }
+        
+        function handleKeyboard(event) {
+            if (!currentImage) return;
+            if (event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA' || event.target.tagName === 'SELECT') return;
+            
+            if (event.key === 'r' || event.key === 'R') {
+                event.preventDefault();
+                resetZoom();
+            }
+        }
+        
+        async function loadTakeoff() {
+            const response = await fetch(`/api/drawings/${currentDrawing}/takeoff-by-wbs`);
+            const takeoff = await response.json();
+            
+            const summaryDiv = document.getElementById('takeoffSummary');
+            if (takeoff.length === 0) {
+                summaryDiv.innerHTML = '<p style="color: #95a5a6; font-size: 13px;">No items</p>';
+                return;
+            }
+            
+            summaryDiv.innerHTML = takeoff.map(wbs => `
+                <div class="wbs-group">
+                    <div class="wbs-group-header">${wbs.wbs_category}</div>
+                    <div class="wbs-group-items">
+                        ${wbs.items.map(item => `
+                            <div class="item-count">
+                                <span>${item.item_type}</span>
+                                <strong>${item.count}</strong>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        async function processCurrentDrawing() {
+            if (!currentDrawing) {
+                alert('Select a drawing first');
+                return;
+            }
+            
+            const response = await fetch(`/api/drawings/${currentDrawing}/process`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ page_number: currentPage })
+            });
+            
+            const result = await response.json();
+            alert(`Detected ${result.count} items!`);
+            await loadDetectedItems();
+            await loadTakeoff();
+        }
+        
+        function uploadDrawing() {
+            if (!currentProject) {
+                alert('Select a project first');
+                return;
+            }
+            document.getElementById('fileInput').click();
+        }
+        
+        async function handleFileUpload(event) {
+            const files = event.target.files;
+            if (!files || files.length === 0) return;
+            
+            for (let file of files) {
+                const formData = new FormData();
+                formData.append('file', file);
+                await fetch(`/api/projects/${currentProject.id}/drawings`, {
+                    method: 'POST',
+                    body: formData
+                });
+            }
+            
+            await selectProject(currentProject.id);
+            alert('Drawings uploaded!');
+            event.target.value = '';
+        }
+        
+        function showNewProjectModal() {
+            document.getElementById('newProjectModal').style.display = 'block';
+        }
+        
+        async function createProject() {
+            const name = document.getElementById('projectName').value.trim();
+            const description = document.getElementById('projectDescription').value.trim();
+            
+            if (!name) {
+                alert('Enter a project name');
+                return;
+            }
+            
+            await fetch('/api/projects', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name, description })
+            });
+            
+            closeModals();
+            await loadProjects();
+        }
+        
+        function showManageWBSModal() {
+            if (!currentProject) {
+                alert('Select a project first');
+                return;
+            }
+            document.getElementById('manageWBSModal').style.display = 'block';
+            renderWBSList();
+        }
+        
+        function renderWBSList() {
+            const list = document.getElementById('wbsList');
+            const parentSelect = document.getElementById('newWBSParent');
+            
+            if (wbsCategories.length === 0) {
+                list.innerHTML = '<p style="color: #95a5a6;">No categories</p>';
+                parentSelect.innerHTML = '<option value="">Top Level</option>';
+                return;
+            }
+            
+            parentSelect.innerHTML = '<option value="">Top Level</option>';
+            wbsCategories.forEach(c => {
+                const option = document.createElement('option');
+                option.value = c.id;
+                option.textContent = c.name;
+                parentSelect.appendChild(option);
+            });
+            
             function renderCategory(cat, level = 0) {
-                const levelClass = level > 0 ? `level-${Math.min(level, 2)}` : '';
                 const indent = '\u00A0\u00A0'.repeat(level * 2);
                 const prefix = level > 0 ? '└ ' : '';
                 const html = `
-                    <div class="wbs-list-item ${levelClass} ${cat.id === currentWBSCategory ? 'selected' : ''}">
-                        <span class="wbs-item-name">
-                            ${indent}${prefix}${cat.name}
-                        </span>
-                        <div style="display: flex; gap: 5px;">
-                            <button class="small" onclick="addChildWBS(${cat.id})">+ Sub</button>
-                            <button class="small" onclick="renameWBSCategory(${cat.id}, '${cat.name.replace(/'/g, "\\'")}')">Rename</button>
-                            <button class="small danger" onclick="deleteWBSCategory(${cat.id})">Delete</button>
-                        </div>
+                    <div class="wbs-list-item ${level > 0 ? 'level-1' : ''} ${cat.id === currentWBSCategory ? 'selected' : ''}">
+                        <span>${indent}${prefix}${cat.name}</span>
+                        <button class="small danger" onclick="deleteWBSCategory(${cat.id})">Delete</button>
                     </div>
                 `;
                 
@@ -740,773 +1738,103 @@
                 return html + childrenHtml;
             }
             
-            // Render top-level categories
+            const topLevel = wbsCategories.filter(c => c.parent_id === null);
             list.innerHTML = topLevel.map(cat => renderCategory(cat)).join('');
         }
         
-        function getLevel(categoryId) {
-            let level = 0;
-            let cat = wbsCategories.find(c => c.id === categoryId);
-            while (cat && cat.parent_id) {
-                level++;
-                cat = wbsCategories.find(c => c.id === cat.parent_id);
-            }
-            return level;
-        }
-        
-        function addChildWBS(parentId) {
-            const parentCat = wbsCategories.find(c => c.id === parentId);
-            if (!parentCat) return;
-            
-            const name = prompt(`Enter name for sub-category under "${parentCat.name}":`);
-            if (!name || !name.trim()) return;
-            
-            createWBSCategoryWithParent(name.trim(), parentId);
-        }
-        
-        async function createWBSCategoryWithParent(name, parentId) {
-            try {
-                const response = await fetch(`/api/projects/${currentProject.id}/wbs`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ name, parent_id: parentId })
-                });
-                
-                if (!response.ok) {
-                    const errorData = await response.json();
-                    throw new Error(errorData.error || 'Failed to create category');
-                }
-                
-                await loadWBSCategories();
-                renderWBSList();
-            } catch (error) {
-                console.error('Error creating WBS category:', error);
-                alert('Error: ' + error.message);
-            }
-        }
-
         async function addWBSCategory() {
-            const nameInput = document.getElementById('newWBSName');
-            const parentSelect = document.getElementById('newWBSParent');
-            const name = nameInput.value.trim();
+            const name = document.getElementById('newWBSName').value.trim();
+            const parentId = document.getElementById('newWBSParent').value;
             
             if (!name) {
-                alert('Please enter a category name');
+                alert('Enter a category name');
                 return;
             }
             
-            const parentId = parentSelect.value ? parseInt(parentSelect.value) : null;
-            
-            try {
-                const response = await fetch(`/api/projects/${currentProject.id}/wbs`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ name, parent_id: parentId })
-                });
-                
-                if (!response.ok) {
-                    const errorData = await response.json();
-                    throw new Error(errorData.error || 'Failed to create WBS category');
-                }
-                
-                nameInput.value = '';
-                parentSelect.value = '';
-                await loadWBSCategories();
-                renderWBSList();
-            } catch (error) {
-                console.error('Error creating WBS category:', error);
-                alert('Error: ' + error.message);
-            }
-        }
-
-        async function renameWBSCategory(categoryId, currentName) {
-            const newName = prompt('Enter new category name:', currentName);
-            if (!newName || newName === currentName) return;
-            
-            try {
-                const response = await fetch(`/api/wbs/${categoryId}`, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ name: newName })
-                });
-                
-                if (!response.ok) {
-                    const errorData = await response.json();
-                    throw new Error(errorData.error || 'Failed to rename WBS category');
-                }
-                
-                await loadWBSCategories();
-                renderWBSList();
-            } catch (error) {
-                console.error('Error renaming WBS category:', error);
-                alert('Error: ' + error.message);
-            }
-        }
-
-        async function deleteWBSCategory(categoryId) {
-            const cat = wbsCategories.find(c => c.id === categoryId);
-            if (!cat) return;
-            
-            if (!confirm(`Delete "${cat.name}"?`)) return;
-            
-            try {
-                const response = await fetch(`/api/wbs/${categoryId}`, {
-                    method: 'DELETE'
-                });
-                
-                if (!response.ok) {
-                    const errorData = await response.json();
-                    throw new Error(errorData.error || 'Failed to delete WBS category');
-                }
-                
-                if (currentWBSCategory === categoryId) {
-                    currentWBSCategory = null;
-                    document.getElementById('wbsSelect').value = '';
-                }
-                
-                await loadWBSCategories();
-                renderWBSList();
-                await loadTakeoff();
-            } catch (error) {
-                console.error('Error deleting WBS category:', error);
-                alert(error.message);
-            }
-        }
-
-        function handleDrawingChange() {
-            const drawingSelect = document.getElementById('drawingSelect');
-            const drawingId = parseInt(drawingSelect.value);
-            
-            if (drawingId) {
-                selectDrawing(drawingId);
-            }
-        }
-
-        async function selectDrawing(drawingId) {
-            try {
-                currentDrawing = drawingId;
-                currentPage = 0;
-                await loadDrawingPage();
-                await loadTakeoff();
-            } catch (error) {
-                console.error('Error selecting drawing:', error);
-                alert('Error loading drawing: ' + error.message);
-            }
-        }
-
-        async function loadDrawingPage() {
-            try {
-                const img = new Image();
-                img.onerror = function() {
-                    console.error('Failed to load image');
-                    alert('Error loading drawing image');
-                };
-                img.onload = function() {
-                    currentImage = img;
-                    canvas.width = img.width;
-                    canvas.height = img.height;
-                    
-                    // Reset zoom and pan when loading new drawing
-                    zoomLevel = 1.0;
-                    panX = 0;
-                    panY = 0;
-                    
-                    redrawCanvas();
-                    document.getElementById('canvasInstructions').style.display = 'none';
-                    canvas.style.display = 'block';
-                    loadDetectedItems();
-                };
-                img.src = `/api/drawings/${currentDrawing}/page/${currentPage}/image`;
-            } catch (error) {
-                console.error('Error loading drawing page:', error);
-                alert('Error: ' + error.message);
-            }
-        }
-
-        async function loadDetectedItems() {
-            try {
-                const response = await fetch(`/api/drawings/${currentDrawing}/items?page=${currentPage}`);
-                if (!response.ok) {
-                    throw new Error('Failed to load detected items');
-                }
-                currentDetectedItems = await response.json();
-                redrawCanvas();
-                
-                document.getElementById('detectionInfo').innerHTML = `
-                    <p style="font-size: 13px;">Items detected: ${currentDetectedItems.length}</p>
-                    <p style="font-size: 13px;">Zoom: ${Math.round(zoomLevel * 100)}%</p>
-                `;
-            } catch (error) {
-                console.error('Error loading detected items:', error);
-            }
-        }
-
-        function redrawCanvas() {
-            if (!currentImage) return;
-            
-            // Clear canvas
-            ctx.setTransform(1, 0, 0, 1, 0, 0);
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            
-            // Apply transformations
-            ctx.translate(panX, panY);
-            ctx.scale(zoomLevel, zoomLevel);
-            
-            // Draw the image
-            ctx.drawImage(currentImage, 0, 0);
-            
-            // Draw detected items
-            currentDetectedItems.forEach(item => {
-                ctx.strokeStyle = item.verified ? '#2ecc71' : '#e74c3c';
-                ctx.lineWidth = 2 / zoomLevel;
-                ctx.strokeRect(item.x, item.y, item.width, item.height);
-                
-                ctx.fillStyle = item.verified ? '#2ecc71' : '#e74c3c';
-                ctx.font = `${12 / zoomLevel}px Arial`;
-                ctx.fillText(item.item_type, item.x, item.y - 5 / zoomLevel);
+            await fetch(`/api/projects/${currentProject.id}/wbs`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name, parent_id: parentId || null })
             });
+            
+            document.getElementById('newWBSName').value = '';
+            await loadWBSCategories();
+            renderWBSList();
         }
-
-        function handleZoom(event) {
-            event.preventDefault();
+        
+        async function deleteWBSCategory(categoryId) {
+            if (!confirm('Delete this category?')) return;
             
-            if (!currentImage) return;
-            
-            const rect = canvas.getBoundingClientRect();
-            const mouseX = event.clientX - rect.left;
-            const mouseY = event.clientY - rect.top;
-            
-            const scaleX = canvas.width / rect.width;
-            const scaleY = canvas.height / rect.height;
-            
-            const canvasX = mouseX * scaleX;
-            const canvasY = mouseY * scaleY;
-            
-            const pointX = (canvasX - panX) / zoomLevel;
-            const pointY = (canvasY - panY) / zoomLevel;
-            
-            const zoomDelta = event.deltaY > 0 ? 0.9 : 1.1;
-            const newZoom = Math.min(Math.max(0.1, zoomLevel * zoomDelta), 10);
-            
-            panX = canvasX - pointX * newZoom;
-            panY = canvasY - pointY * newZoom;
-            
-            zoomLevel = newZoom;
-            
-            redrawCanvas();
-            
-            document.getElementById('detectionInfo').innerHTML = `
-                <p style="font-size: 13px;">Items detected: ${currentDetectedItems.length}</p>
-                <p style="font-size: 13px;">Zoom: ${Math.round(zoomLevel * 100)}%</p>
-            `;
-        }
-
-        function handleMouseDown(event) {
-            if (event.button === 1) {
-                event.preventDefault();
-                isPanning = true;
-                
-                const rect = canvas.getBoundingClientRect();
-                const scaleX = canvas.width / rect.width;
-                const scaleY = canvas.height / rect.height;
-                
-                lastMouseX = (event.clientX - rect.left) * scaleX;
-                lastMouseY = (event.clientY - rect.top) * scaleY;
-                canvas.style.cursor = 'grabbing';
-            }
-        }
-
-        function handleMouseMove(event) {
-            if (isPanning && currentImage) {
-                const rect = canvas.getBoundingClientRect();
-                const scaleX = canvas.width / rect.width;
-                const scaleY = canvas.height / rect.height;
-                
-                const currentMouseX = (event.clientX - rect.left) * scaleX;
-                const currentMouseY = (event.clientY - rect.top) * scaleY;
-                
-                const deltaX = currentMouseX - lastMouseX;
-                const deltaY = currentMouseY - lastMouseY;
-                
-                panX += deltaX;
-                panY += deltaY;
-                
-                lastMouseX = currentMouseX;
-                lastMouseY = currentMouseY;
-                
-                redrawCanvas();
-            }
-        }
-
-        function handleMouseUp(event) {
-            if (event.button === 1 || isPanning) {
-                isPanning = false;
-                canvas.style.cursor = 'default';
-            }
-        }
-
-        function resetZoom() {
-            if (!currentImage) return;
-            
-            zoomLevel = 1.0;
-            panX = 0;
-            panY = 0;
-            
-            redrawCanvas();
-            
-            document.getElementById('detectionInfo').innerHTML = `
-                <p style="font-size: 13px;">Items detected: ${currentDetectedItems.length}</p>
-                <p style="font-size: 13px;">Zoom: 100%</p>
-            `;
-        }
-
-        function handleKeyboard(event) {
-            if (!currentImage) return;
-            
-            if (event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA' || event.target.tagName === 'SELECT') {
+            const response = await fetch(`/api/wbs/${categoryId}`, { method: 'DELETE' });
+            if (!response.ok) {
+                const data = await response.json();
+                alert(data.error);
                 return;
             }
             
-            switch(event.key) {
-                case '+':
-                case '=':
-                    event.preventDefault();
-                    zoomAtCenter(1.2);
-                    break;
-                case '-':
-                case '_':
-                    event.preventDefault();
-                    zoomAtCenter(0.8);
-                    break;
-                case 'r':
-                case 'R':
-                    event.preventDefault();
-                    resetZoom();
-                    break;
-            }
+            await loadWBSCategories();
+            renderWBSList();
+            await loadTakeoff();
         }
-
-        function zoomAtCenter(factor) {
-            const rect = canvas.getBoundingClientRect();
-            const centerX = rect.width / 2;
-            const centerY = rect.height / 2;
-            
-            const imageX = (centerX - panX) / zoomLevel;
-            const imageY = (centerY - panY) / zoomLevel;
-            
-            const newZoom = Math.min(Math.max(0.1, zoomLevel * factor), 10);
-            
-            panX = centerX - imageX * newZoom;
-            panY = centerY - imageY * newZoom;
-            
-            zoomLevel = newZoom;
-            
-            redrawCanvas();
-            
-            document.getElementById('detectionInfo').innerHTML = `
-                <p style="font-size: 13px;">Items detected: ${currentDetectedItems.length}</p>
-                <p style="font-size: 13px;">Zoom: ${Math.round(zoomLevel * 100)}%</p>
-            `;
-        }
-
-        async function loadTakeoff() {
-            try {
-                const response = await fetch(`/api/drawings/${currentDrawing}/takeoff-by-wbs`);
-                if (!response.ok) {
-                    throw new Error('Failed to load takeoff');
-                }
-                const takeoff = await response.json();
-                
-                const summaryDiv = document.getElementById('takeoffSummary');
-                
-                if (takeoff.length === 0) {
-                    summaryDiv.innerHTML = '<p style="color: #95a5a6; font-size: 13px;">No items detected</p>';
-                    return;
-                }
-                
-                summaryDiv.innerHTML = takeoff.map(wbs => {
-                    return `
-                        <div class="wbs-group">
-                            <div class="wbs-group-header">${wbs.wbs_category}</div>
-                            <div class="wbs-group-items">
-                                ${wbs.items.map(item => `
-                                    <div class="item-count">
-                                        <span>${item.item_type}</span>
-                                        <strong>${item.count}</strong>
-                                    </div>
-                                `).join('')}
-                            </div>
-                        </div>
-                    `;
-                }).join('');
-            } catch (error) {
-                console.error('Error loading takeoff:', error);
-                document.getElementById('takeoffSummary').innerHTML = 
-                    '<p style="color: #95a5a6; font-size: 13px;">Error loading takeoff</p>';
-            }
-        }
-
-        async function processCurrentDrawing() {
+        
+        async function exportTakeoff() {
             if (!currentDrawing) {
-                alert('Please select a drawing first');
+                alert('Select a drawing first');
                 return;
             }
             
-            try {
-                const response = await fetch(`/api/drawings/${currentDrawing}/process`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ page_number: currentPage })
+            const response = await fetch(`/api/drawings/${currentDrawing}/takeoff-by-wbs`);
+            const takeoff = await response.json();
+            
+            let csv = 'WBS Category,Item Type,Count\n';
+            takeoff.forEach(wbs => {
+                wbs.items.forEach(item => {
+                    csv += `${wbs.wbs_category},${item.item_type},${item.count}\n`;
                 });
-                
-                if (!response.ok) {
-                    throw new Error('Failed to process drawing');
-                }
-                
-                const result = await response.json();
-                alert(`Detected ${result.count} items!\nScale: ${result.scale}`);
-                
-                await loadDetectedItems();
-                await loadTakeoff();
-            } catch (error) {
-                console.error('Error processing drawing:', error);
-                alert('Error processing drawing: ' + error.message);
-            }
+            });
+            
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'takeoff.csv';
+            a.click();
         }
-
-        function uploadDrawing() {
-            if (!currentProject) {
-                alert('Please select a project first');
-                return;
-            }
-            document.getElementById('fileInput').click();
+        
+        function showSuccessToast(message) {
+            const toast = document.createElement('div');
+            toast.className = 'success-toast';
+            toast.textContent = message;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 3000);
         }
-
-        async function handleFileUpload(event) {
-            const files = event.target.files;
-            if (!files || files.length === 0) return;
-            
-            const uploadProgress = document.getElementById('uploadProgress');
-            const uploadText = document.getElementById('uploadText');
-            const progressFill = document.getElementById('progressFill');
-            
-            uploadProgress.style.display = 'block';
-            
-            let successCount = 0;
-            let failCount = 0;
-            
-            for (let i = 0; i < files.length; i++) {
-                const file = files[i];
-                const progress = Math.round(((i + 1) / files.length) * 100);
-                
-                uploadText.textContent = `Uploading ${i + 1} of ${files.length}: ${file.name}`;
-                progressFill.style.width = progress + '%';
-                
-                try {
-                    const formData = new FormData();
-                    formData.append('file', file);
-                    
-                    const response = await fetch(`/api/projects/${currentProject.id}/drawings`, {
-                        method: 'POST',
-                        body: formData
-                    });
-                    
-                    if (!response.ok) {
-                        const errorData = await response.json();
-                        throw new Error(errorData.error || 'Failed to upload drawing');
-                    }
-                    
-                    successCount++;
-                } catch (error) {
-                    console.error(`Error uploading ${file.name}:`, error);
-                    failCount++;
-                }
-            }
-            
-            uploadProgress.style.display = 'none';
-            progressFill.style.width = '0%';
-            
-            if (successCount > 0) {
-                await selectProject(currentProject.id);
-            }
-            
-            if (failCount > 0) {
-                alert(`Uploaded ${successCount} drawing(s) successfully.\n${failCount} failed.`);
-            } else {
-                alert(`All ${successCount} drawing(s) uploaded successfully!`);
-            }
-            
-            event.target.value = '';
-        }
-
-        function showNewProjectModal() {
-            document.getElementById('newProjectModal').style.display = 'block';
-        }
-
+        
         function closeModals() {
             document.getElementById('newProjectModal').style.display = 'none';
             document.getElementById('manageWBSModal').style.display = 'none';
+            document.getElementById('calibrateModal').style.display = 'none';
+            document.getElementById('scaleZonesModal').style.display = 'none';
+            document.getElementById('createZoneModal').style.display = 'none';
             document.getElementById('projectName').value = '';
             document.getElementById('projectDescription').value = '';
-        }
-
-        async function createProject() {
-            const name = document.getElementById('projectName').value.trim();
-            const description = document.getElementById('projectDescription').value.trim();
             
-            if (!name) {
-                alert('Please enter a project name');
-                return;
-            }
-            
-            try {
-                const response = await fetch('/api/projects', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ name, description })
-                });
-                
-                if (!response.ok) {
-                    const errorData = await response.json();
-                    throw new Error(errorData.error || 'Failed to create project');
-                }
-                
-                closeModals();
-                await loadProjects();
-                alert('Project created successfully with default WBS categories!');
-            } catch (error) {
-                console.error('Error creating project:', error);
-                alert('Error creating project: ' + error.message);
+            // Clean up zone creation state
+            if (pendingZone) {
+                pendingZone = null;
+                isCreatingZone = false;
             }
         }
-
-        function showDrawingContextMenu(event) {
-            event.preventDefault();
-            
-            const drawingSelect = document.getElementById('drawingSelect');
-            if (!drawingSelect.value) {
-                return;
-            }
-            
-            const contextMenu = document.getElementById('contextMenu');
-            contextMenu.style.display = 'block';
-            contextMenu.style.left = event.pageX + 'px';
-            contextMenu.style.top = event.pageY + 'px';
-        }
-
-        function hideContextMenu() {
-            document.getElementById('contextMenu').style.display = 'none';
-        }
-
-        async function renameSelectedDrawing() {
-            hideContextMenu();
-            
-            const drawingSelect = document.getElementById('drawingSelect');
-            const drawingId = parseInt(drawingSelect.value);
-            
-            if (!drawingId) return;
-            
-            const drawing = allDrawings.find(d => d.id === drawingId);
-            if (!drawing) return;
-            
-            const newName = prompt('Enter new drawing name:', drawing.name);
-            if (!newName || newName === drawing.name) return;
-            
-            try {
-                const response = await fetch(`/api/drawings/${drawingId}`, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ name: newName })
-                });
-                
-                if (!response.ok) {
-                    throw new Error('Failed to rename drawing');
-                }
-                
-                if (currentProject) {
-                    await selectProject(currentProject.id);
-                }
-                alert('Drawing renamed successfully!');
-            } catch (error) {
-                console.error('Error renaming drawing:', error);
-                alert('Error renaming drawing: ' + error.message);
-            }
-        }
-
-        async function deleteSelectedDrawing() {
-            hideContextMenu();
-            
-            const drawingSelect = document.getElementById('drawingSelect');
-            const drawingId = parseInt(drawingSelect.value);
-            
-            if (!drawingId) return;
-            
-            if (!confirm('Are you sure you want to delete this drawing? All detected items will be permanently deleted!')) {
-                return;
-            }
-            
-            try {
-                const response = await fetch(`/api/drawings/${drawingId}`, {
-                    method: 'DELETE'
-                });
-                
-                if (!response.ok) {
-                    throw new Error('Failed to delete drawing');
-                }
-                
-                if (currentDrawing === drawingId) {
-                    currentDrawing = null;
-                    currentImage = null;
-                    currentDetectedItems = [];
-                    zoomLevel = 1.0;
-                    panX = 0;
-                    panY = 0;
-                    document.getElementById('takeoffSummary').innerHTML = '<p style="color: #95a5a6; font-size: 13px;">Process a drawing to see results</p>';
-                    document.getElementById('canvasInstructions').style.display = 'block';
-                    canvas.style.display = 'none';
-                    ctx.clearRect(0, 0, canvas.width, canvas.height);
-                }
-                
-                if (currentProject) {
-                    await selectProject(currentProject.id);
-                }
-                alert('Drawing deleted successfully!');
-            } catch (error) {
-                console.error('Error deleting drawing:', error);
-                alert('Error deleting drawing: ' + error.message);
-            }
-        }
-
-        async function renameProject(projectId, currentName) {
-            const newName = prompt('Enter new project name:', currentName);
-            if (!newName || newName === currentName) return;
-            
-            try {
-                const response = await fetch(`/api/projects/${projectId}`, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ name: newName })
-                });
-                
-                if (!response.ok) {
-                    throw new Error('Failed to rename project');
-                }
-                
-                await loadProjects();
-                if (currentProject && currentProject.id === projectId) {
-                    currentProject.name = newName;
-                    document.getElementById('currentProject').textContent = newName;
-                }
-                alert('Project renamed successfully!');
-            } catch (error) {
-                console.error('Error renaming project:', error);
-                alert('Error renaming project: ' + error.message);
-            }
-        }
-
-        async function deleteProjectConfirm(projectId) {
-            if (!confirm('Are you sure you want to delete this project? All drawings and data will be permanently deleted!')) {
-                return;
-            }
-            
-            try {
-                const response = await fetch(`/api/projects/${projectId}`, {
-                    method: 'DELETE'
-                });
-                
-                if (!response.ok) {
-                    throw new Error('Failed to delete project');
-                }
-                
-                if (currentProject && currentProject.id === projectId) {
-                    currentProject = null;
-                    currentDrawing = null;
-                    allDrawings = [];
-                    currentImage = null;
-                    currentDetectedItems = [];
-                    zoomLevel = 1.0;
-                    panX = 0;
-                    panY = 0;
-                    document.getElementById('currentProject').textContent = 'No project selected';
-                    document.getElementById('drawingSelect').innerHTML = '<option value="">No drawings</option>';
-                    document.getElementById('takeoffSummary').innerHTML = '<p style="color: #95a5a6; font-size: 13px;">Process a drawing to see results</p>';
-                    document.getElementById('canvasInstructions').style.display = 'block';
-                    canvas.style.display = 'none';
-                    ctx.clearRect(0, 0, canvas.width, canvas.height);
-                }
-                
-                await loadProjects();
-                alert('Project deleted successfully!');
-            } catch (error) {
-                console.error('Error deleting project:', error);
-                alert('Error deleting project: ' + error.message);
-            }
-        }
-
-        async function exportTakeoff() {
-            if (!currentDrawing) {
-                alert('Please select a drawing first');
-                return;
-            }
-            
-            try {
-                const response = await fetch(`/api/drawings/${currentDrawing}/takeoff-by-wbs`);
-                if (!response.ok) {
-                    throw new Error('Failed to get takeoff data');
-                }
-                const takeoff = await response.json();
-                
-                if (takeoff.length === 0) {
-                    alert('No items to export. Process a drawing first.');
-                    return;
-                }
-                
-                let csv = 'WBS Category,Item Type,Count\n';
-                takeoff.forEach(wbs => {
-                    wbs.items.forEach(item => {
-                        csv += `${wbs.wbs_category},${item.item_type},${item.count}\n`;
-                    });
-                });
-                
-                const blob = new Blob([csv], { type: 'text/csv' });
-                const url = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = 'takeoff_by_wbs.csv';
-                a.click();
-                window.URL.revokeObjectURL(url);
-            } catch (error) {
-                console.error('Error exporting takeoff:', error);
-                alert('Error exporting takeoff: ' + error.message);
-            }
-        }
-
+        
         function changeCompany() {
-            if (confirm('Are you sure you want to change company? Any unsaved work will be lost.')) {
+            if (confirm('Change company? Unsaved work will be lost.')) {
                 window.location.href = '/';
             }
         }
-
+        
         async function logout() {
-            if (confirm('Are you sure you want to logout?')) {
-                try {
-                    await fetch('/api/auth/logout', { method: 'POST' });
-                    window.location.href = '/';
-                } catch (error) {
-                    console.error('Error logging out:', error);
-                    window.location.href = '/';
-                }
-            }
-        }
-
-        window.onclick = function(event) {
-            const projectModal = document.getElementById('newProjectModal');
-            const wbsModal = document.getElementById('manageWBSModal');
-            if (event.target === projectModal) {
-                closeModals();
-            }
-            if (event.target === wbsModal) {
-                closeModals();
+            if (confirm('Logout?')) {
+                await fetch('/api/auth/logout', { method: 'POST' });
+                window.location.href = '/';
             }
         }
     </script>

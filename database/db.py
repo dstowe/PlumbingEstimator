@@ -67,7 +67,7 @@ def init_db():
         FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE
     )''')
     
-    # WBS Categories table (NEW)
+    # WBS Categories table
     c.execute('''CREATE TABLE IF NOT EXISTS wbs_categories (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         project_id INTEGER NOT NULL,
@@ -98,7 +98,49 @@ def init_db():
         FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
     )''')
     
-    # Detected items table - check if wbs_category_id column exists
+    # Custom Scales table
+    c.execute('''CREATE TABLE IF NOT EXISTS custom_scales (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        project_id INTEGER NOT NULL,
+        name TEXT NOT NULL,
+        pixels_per_unit REAL NOT NULL,
+        unit TEXT DEFAULT 'feet',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+    )''')
+    
+    # Page Scales table
+    c.execute('''CREATE TABLE IF NOT EXISTS page_scales (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        drawing_id INTEGER NOT NULL,
+        page_number INTEGER NOT NULL,
+        scale_id TEXT,
+        scale_name TEXT,
+        pixels_per_unit REAL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (drawing_id) REFERENCES drawings(id) ON DELETE CASCADE,
+        UNIQUE(drawing_id, page_number)
+    )''')
+    
+    # Scale Zones table
+    c.execute('''CREATE TABLE IF NOT EXISTS scale_zones (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        drawing_id INTEGER NOT NULL,
+        page_number INTEGER NOT NULL,
+        name TEXT NOT NULL,
+        x REAL NOT NULL,
+        y REAL NOT NULL,
+        width REAL NOT NULL,
+        height REAL NOT NULL,
+        scale_id TEXT,
+        scale_name TEXT,
+        pixels_per_unit REAL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (drawing_id) REFERENCES drawings(id) ON DELETE CASCADE
+    )''')
+    
+    # Detected items table
     c.execute('''CREATE TABLE IF NOT EXISTS detected_items (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         drawing_id INTEGER NOT NULL,

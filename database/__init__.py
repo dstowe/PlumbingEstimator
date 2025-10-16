@@ -14,7 +14,11 @@ from .models import (
     create_wbs_category, update_wbs_category, delete_wbs_category, get_wbs_path,
     get_takeoff_by_wbs, get_takeoff_by_wbs_for_drawing,
     update_detected_item_wbs, bulk_update_items_wbs,
-    check_wbs_category_has_items, check_wbs_category_has_children
+    check_wbs_category_has_items, check_wbs_category_has_children,
+    create_custom_scale, get_custom_scales_for_project, delete_custom_scale,
+    set_page_scale, get_page_scale,
+    create_scale_zone, get_scale_zones_for_page, update_scale_zone, delete_scale_zone,
+    get_project_from_drawing
 )
 
 __all__ = [
@@ -30,5 +34,9 @@ __all__ = [
     'create_wbs_category', 'update_wbs_category', 'delete_wbs_category', 'get_wbs_path',
     'get_takeoff_by_wbs', 'get_takeoff_by_wbs_for_drawing',
     'update_detected_item_wbs', 'bulk_update_items_wbs',
-    'check_wbs_category_has_items', 'check_wbs_category_has_children'
+    'check_wbs_category_has_items', 'check_wbs_category_has_children',
+    'create_custom_scale', 'get_custom_scales_for_project', 'delete_custom_scale',
+    'set_page_scale', 'get_page_scale',
+    'create_scale_zone', 'get_scale_zones_for_page', 'update_scale_zone', 'delete_scale_zone',
+    'get_project_from_drawing'
 ]
