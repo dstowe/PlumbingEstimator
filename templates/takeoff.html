@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Takeoff - Drawing Measurement</title>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <style>
+        body { 
+            margin: 0; 
+            font-family: system-ui, -apple-system, sans-serif; 
+            overflow: hidden; 
+        }
+    </style>
+</head>
+<body data-drawing-id="{{ drawing_id or '' }}" 
+      data-project-id="{{ project_id or '' }}"
+      data-page-number="{{ page_number if page_number is defined else 0 }}">
+    <div id="root"></div>
+    
+    <script type="text/babel">
+        {% raw %}
+        const { useState, useRef, useEffect, useMemo } = React;
+
+        // Get drawing info from data attributes
+        const bodyData = document.body.dataset;
+        const DRAWING_ID = bodyData.drawingId ? parseInt(bodyData.drawingId) : null;
+        const PROJECT_ID = bodyData.projectId ? parseInt(bodyData.projectId) : null;
+        const PAGE_NUMBER = bodyData.pageNumber ? parseInt(bodyData.pageNumber) : 0;
+
+        // Icon Components
+        const Ruler = () => <span>📏</span>;
+        const Plus = () => <span>➕</span>;
+        const Trash2 = () => <span>🗑️</span>;
+        const Package = () => <span>📦</span>;
+        const ZoomIn = () => <span>🔍+</span>;
+        const ZoomOut = () => <span>🔍-</span>;
+        const Move = () => <span>✋</span>;
+        const MousePointer = () => <span>👆</span>;
+        const FileText = () => <span>📄</span>;
+        const ArrowLeft = () => <span>←</span>;
+        const Save = () => <span>💾</span>;
+
+        const TakeoffMeasurementUI = () => {
+          const canvasRef = useRef(null);
+          const [tool, setTool] = useState('select');
+          const [scale, setScale] = useState({ name: '1/4" = 1\'-0"', ratio: 48 });
+          const [zoom, setZoom] = useState(1);
+          const [pan, setPan] = useState({ x: 0, y: 0 });
+          
+          // Drawing state
+          const [drawing, setDrawing] = useState(null);
+          const [drawingImage, setDrawingImage] = useState(null);
+          const [loading, setLoading] = useState(true);
+          
+          // Data from API
+          const [materials, setMaterials] = useState([]);
+          const [wbsCategories, setWbsCategories] = useState([]);
+          
+          const [measurements, setMeasurements] = useState([]);
+          const [currentMeasurement, setCurrentMeasurement] = useState(null);
+          const [counts, setCounts] = useState([]);
+          
+          const [takeoffItems, setTakeoffItems] = useState([]);
+          const [showMaterialModal, setShowMaterialModal] = useState(false);
+          const [selectedMaterial, setSelectedMaterial] = useState(null);
+          const [selectedWBS, setSelectedWBS] = useState(null);
+          const [quantity, setQuantity] = useState(0);
+          const [multiplier, setMultiplier] = useState(1.0);
+          
+          const [isDragging, setIsDragging] = useState(false);
+          const [lastPos, setLastPos] = useState({ x: 0, y: 0 });
+          const [error, setError] = useState(null);
+
+          // Load drawing and data on mount
+          useEffect(() => {
+            const loadData = async () => {
+              try {
+                setLoading(true);
+                
+                // Load drawing info
+                const drawingRes = await fetch(`/api/drawings/${DRAWING_ID}`);
+                const drawingData = await drawingRes.json();
+                setDrawing(drawingData);
+                
+                // Load drawing image
+                const imgRes = await fetch(`/api/drawings/${DRAWING_ID}/page/${PAGE_NUMBER}/image`);
+                const imgBlob = await imgRes.blob();
+                const imgUrl = URL.createObjectURL(imgBlob);
+                
+                const img = new Image();
+                img.onload = () => {
+                  setDrawingImage(img);
+                  setLoading(false);
+                };
+                img.src = imgUrl;
+                
+                // Load materials
+                const materialsRes = await fetch('/api/materials');
+                const materialsData = await materialsRes.json();
+                setMaterials(materialsData);
+                
+                // Load WBS categories
+                const wbsRes = await fetch(`/api/projects/${PROJECT_ID}/wbs`);
+                const wbsData = await wbsRes.json();
+                setWbsCategories(wbsData);
+                
+                // Load existing takeoff items
+                const takeoffRes = await fetch(`/api/drawings/${DRAWING_ID}/takeoff?page_number=${PAGE_NUMBER}`);
+                const takeoffData = await takeoffRes.json();
+                setTakeoffItems(takeoffData);
+                
+              } catch (err) {
+                console.error('Error loading data:', err);
+                setError('Failed to load drawing data');
+                setLoading(false);
+              }
+            };
+            
+            if (DRAWING_ID && PROJECT_ID) {
+              loadData();
+            }
+          }, []);
+          
+          useEffect(() => {
+            const canvas = canvasRef.current;
+            if (!canvas) return;
+            
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            ctx.save();
+            ctx.translate(pan.x, pan.y);
+            ctx.scale(zoom, zoom);
+            
+            // Draw the actual drawing image
+            if (drawingImage) {
+              ctx.drawImage(drawingImage, 0, 0, drawingImage.width, drawingImage.height);
+            } else {
+              // Grid as fallback
+              ctx.strokeStyle = '#e0e0e0';
+              ctx.lineWidth = 0.5;
+              for (let x = 0; x < canvas.width / zoom; x += 50) {
+                ctx.beginPath();
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, canvas.height / zoom);
+                ctx.stroke();
+              }
+              for (let y = 0; y < canvas.height / zoom; y += 50) {
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(canvas.width / zoom, y);
+                ctx.stroke();
+              }
+            }
+            
+            // Draw measurements
+            ctx.strokeStyle = '#3b82f6';
+            ctx.fillStyle = '#3b82f6';
+            ctx.lineWidth = 2;
+            ctx.font = '14px system-ui';
+            
+            measurements.forEach(m => {
+              ctx.beginPath();
+              ctx.moveTo(m.start.x, m.start.y);
+              ctx.lineTo(m.end.x, m.end.y);
+              ctx.stroke();
+              
+              ctx.beginPath();
+              ctx.arc(m.start.x, m.start.y, 4, 0, Math.PI * 2);
+              ctx.fill();
+              ctx.beginPath();
+              ctx.arc(m.end.x, m.end.y, 4, 0, Math.PI * 2);
+              ctx.fill();
+              
+              const midX = (m.start.x + m.end.x) / 2;
+              const midY = (m.start.y + m.end.y) / 2;
+              ctx.fillStyle = 'white';
+              ctx.fillRect(midX - 30, midY - 12, 60, 24);
+              ctx.fillStyle = '#3b82f6';
+              ctx.fillText(`${m.length.toFixed(1)}'`, midX - 20, midY + 4);
+            });
+            
+            if (currentMeasurement) {
+              ctx.strokeStyle = '#ef4444';
+              ctx.lineWidth = 2;
+              ctx.setLineDash([5, 5]);
+              ctx.beginPath();
+              ctx.moveTo(currentMeasurement.start.x, currentMeasurement.start.y);
+              ctx.lineTo(currentMeasurement.end.x, currentMeasurement.end.y);
+              ctx.stroke();
+              ctx.setLineDash([]);
+            }
+            
+            ctx.fillStyle = '#10b981';
+            counts.forEach((count, idx) => {
+              ctx.beginPath();
+              ctx.arc(count.x, count.y, 8, 0, Math.PI * 2);
+              ctx.fill();
+              ctx.fillStyle = 'white';
+              ctx.font = 'bold 12px system-ui';
+              ctx.textAlign = 'center';
+              ctx.textBaseline = 'middle';
+              ctx.fillText((idx + 1).toString(), count.x, count.y);
+              ctx.fillStyle = '#10b981';
+            });
+            
+            ctx.restore();
+          }, [measurements, currentMeasurement, counts, zoom, pan, drawingImage]);
+          
+          const getCanvasCoords = (e) => {
+            const canvas = canvasRef.current;
+            const rect = canvas.getBoundingClientRect();
+            const x = (e.clientX - rect.left - pan.x) / zoom;
+            const y = (e.clientY - rect.top - pan.y) / zoom;
+            return { x, y };
+          };
+          
+          const handleCanvasMouseDown = (e) => {
+            const pos = getCanvasCoords(e);
+            
+            if (tool === 'measure') {
+              setCurrentMeasurement({ start: pos, end: pos });
+            } else if (tool === 'count') {
+              setCounts([...counts, pos]);
+            } else if (tool === 'pan') {
+              setIsDragging(true);
+              setLastPos({ x: e.clientX, y: e.clientY });
+            }
+          };
+          
+          const handleCanvasMouseMove = (e) => {
+            if (tool === 'measure' && currentMeasurement) {
+              const pos = getCanvasCoords(e);
+              setCurrentMeasurement({ ...currentMeasurement, end: pos });
+            } else if (tool === 'pan' && isDragging) {
+              const dx = e.clientX - lastPos.x;
+              const dy = e.clientY - lastPos.y;
+              setPan({ x: pan.x + dx, y: pan.y + dy });
+              setLastPos({ x: e.clientX, y: e.clientY });
+            }
+          };
+          
+          const handleCanvasMouseUp = (e) => {
+            if (tool === 'measure' && currentMeasurement) {
+              const pos = getCanvasCoords(e);
+              const dx = pos.x - currentMeasurement.start.x;
+              const dy = pos.y - currentMeasurement.start.y;
+              const pixelLength = Math.sqrt(dx * dx + dy * dy);
+              
+              const realLength = (pixelLength / scale.ratio) * 12;
+              
+              setMeasurements([...measurements, {
+                start: currentMeasurement.start,
+                end: pos,
+                length: realLength,
+                pixelLength
+              }]);
+              setCurrentMeasurement(null);
+            } else if (tool === 'pan') {
+              setIsDragging(false);
+            }
+          };
+          
+          const clearMeasurements = () => setMeasurements([]);
+          const clearCounts = () => setCounts([]);
+          
+          const addMeasurementToTakeoff = () => {
+            if (measurements.length === 0) return;
+            const totalLength = measurements.reduce((sum, m) => sum + m.length, 0);
+            setQuantity(totalLength);
+            setShowMaterialModal(true);
+          };
+          
+          const addCountToTakeoff = () => {
+            if (counts.length === 0) return;
+            setQuantity(counts.length);
+            setShowMaterialModal(true);
+          };
+          
+          const saveTakeoffItem = async () => {
+            if (!selectedMaterial || !selectedWBS || !quantity) {
+              alert('Please select material, WBS, and enter quantity');
+              return;
+            }
+            
+            try {
+              // Save to database
+              const response = await fetch(`/api/drawings/${DRAWING_ID}/takeoff`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  page_number: PAGE_NUMBER,
+                  material_id: selectedMaterial.id,
+                  wbs_category_id: selectedWBS.id,
+                  quantity: quantity,
+                  multiplier: multiplier,
+                  measurement_type: tool
+                })
+              });
+              
+              if (!response.ok) throw new Error('Failed to save takeoff item');
+              
+              const result = await response.json();
+              
+              // Add to local state
+              const item = {
+                id: result.id,
+                material: selectedMaterial,
+                wbs: selectedWBS,
+                quantity,
+                multiplier,
+                extendedPrice: selectedMaterial.list_price * quantity * multiplier,
+                extendedLabor: selectedMaterial.labor_units * quantity,
+                measurement_type: tool
+              };
+              
+              setTakeoffItems([...takeoffItems, item]);
+              setShowMaterialModal(false);
+              setSelectedMaterial(null);
+              setSelectedWBS(null);
+              setQuantity(0);
+              setMultiplier(1.0);
+              
+              if (tool === 'measure') clearMeasurements();
+              if (tool === 'count') clearCounts();
+              
+            } catch (err) {
+              console.error('Error saving takeoff item:', err);
+              alert('Failed to save takeoff item');
+            }
+          };
+          
+          const deleteTakeoffItem = async (id) => {
+            try {
+              const response = await fetch(`/api/takeoff/${id}`, { method: 'DELETE' });
+              if (!response.ok) throw new Error('Failed to delete');
+              
+              setTakeoffItems(takeoffItems.filter(item => item.id !== id));
+            } catch (err) {
+              console.error('Error deleting takeoff item:', err);
+              alert('Failed to delete item');
+            }
+          };
+          
+          const generateRFQ = () => {
+            window.location.href = `/projects/${PROJECT_ID}/rfq`;
+          };
+          
+          const totals = useMemo(() => {
+            return takeoffItems.reduce((acc, item) => ({
+              materialCost: acc.materialCost + (item.extendedPrice || 0),
+              laborHours: acc.laborHours + (item.extendedLabor || 0)
+            }), { materialCost: 0, laborHours: 0 });
+          }, [takeoffItems]);
+
+          if (loading) {
+            return (
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh' }}>
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: '48px', marginBottom: '16px' }}>📄</div>
+                  <div>Loading drawing...</div>
+                </div>
+              </div>
+            );
+          }
+
+          if (error) {
+            return (
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh' }}>
+                <div style={{ textAlign: 'center', color: '#ef4444' }}>
+                  <div style={{ fontSize: '48px', marginBottom: '16px' }}>⚠️</div>
+                  <div>{error}</div>
+                  <button onClick={() => window.history.back()} style={{ marginTop: '16px', padding: '8px 16px', cursor: 'pointer' }}>
+                    Go Back
+                  </button>
+                </div>
+              </div>
+            );
+          }
+          
+          return (
+            <div style={{ display: 'flex', height: '100vh', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
+              {/* Left Panel - Drawing Canvas */}
+              <div style={{ flex: '1', display: 'flex', flexDirection: 'column', background: '#f8fafc' }}>
+                {/* Toolbar */}
+                <div style={{ padding: '12px', background: 'white', borderBottom: '1px solid #e2e8f0', display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+                  <button onClick={() => window.history.back()} style={{ padding: '8px 12px', background: 'white', border: '1px solid #e2e8f0', borderRadius: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <ArrowLeft /> Back
+                  </button>
+                  
+                  <div style={{ width: '1px', height: '24px', background: '#e2e8f0' }} />
+                  
+                  <div style={{ display: 'flex', gap: '4px' }}>
+                    <button onClick={() => setTool('select')} style={{ padding: '8px 12px', background: tool === 'select' ? '#3b82f6' : 'white', color: tool === 'select' ? 'white' : '#64748b', border: '1px solid #e2e8f0', borderRadius: '6px', cursor: 'pointer' }}>
+                      <MousePointer /> Select
+                    </button>
+                    <button onClick={() => setTool('measure')} style={{ padding: '8px 12px', background: tool === 'measure' ? '#3b82f6' : 'white', color: tool === 'measure' ? 'white' : '#64748b', border: '1px solid #e2e8f0', borderRadius: '6px', cursor: 'pointer' }}>
+                      <Ruler /> Measure
+                    </button>
+                    <button onClick={() => setTool('count')} style={{ padding: '8px 12px', background: tool === 'count' ? '#3b82f6' : 'white', color: tool === 'count' ? 'white' : '#64748b', border: '1px solid #e2e8f0', borderRadius: '6px', cursor: 'pointer' }}>
+                      <Plus /> Count
+                    </button>
+                    <button onClick={() => setTool('pan')} style={{ padding: '8px 12px', background: tool === 'pan' ? '#3b82f6' : 'white', color: tool === 'pan' ? 'white' : '#64748b', border: '1px solid #e2e8f0', borderRadius: '6px', cursor: 'pointer' }}>
+                      <Move /> Pan
+                    </button>
+                  </div>
+                  
+                  <div style={{ width: '1px', height: '24px', background: '#e2e8f0' }} />
+                  
+                  <div style={{ display: 'flex', gap: '4px' }}>
+                    <button onClick={() => setZoom(Math.min(zoom + 0.2, 3))} style={{ padding: '8px', background: 'white', border: '1px solid #e2e8f0', borderRadius: '6px', cursor: 'pointer' }}>
+                      <ZoomIn />
+                    </button>
+                    <button onClick={() => setZoom(Math.max(zoom - 0.2, 0.5))} style={{ padding: '8px', background: 'white', border: '1px solid #e2e8f0', borderRadius: '6px', cursor: 'pointer' }}>
+                      <ZoomOut />
+                    </button>
+                    <span style={{ padding: '8px 12px', color: '#64748b', fontSize: '14px' }}>
+                      {Math.round(zoom * 100)}%
+                    </span>
+                  </div>
+                  
+                  <select value={scale.name} onChange={(e) => { const scales = { '1/8" = 1\'-0"': 96, '1/4" = 1\'-0"': 48, '1/2" = 1\'-0"': 24, '1" = 1\'-0"': 12 }; setScale({ name: e.target.value, ratio: scales[e.target.value] }); }} style={{ padding: '8px', border: '1px solid #e2e8f0', borderRadius: '6px', fontSize: '14px' }}>
+                    <option>1/8" = 1'-0"</option>
+                    <option>1/4" = 1'-0"</option>
+                    <option>1/2" = 1'-0"</option>
+                    <option>1" = 1'-0"</option>
+                  </select>
+                  
+                  <div style={{ flex: 1 }} />
+                  
+                  <div style={{ fontSize: '14px', color: '#64748b' }}>
+                    {drawing?.name} • Page {PAGE_NUMBER + 1}
+                  </div>
+                  
+                  {measurements.length > 0 && (
+                    <>
+                      <span style={{ fontSize: '14px', color: '#64748b' }}>
+                        Total: {measurements.reduce((sum, m) => sum + m.length, 0).toFixed(1)} ft
+                      </span>
+                      <button onClick={addMeasurementToTakeoff} style={{ padding: '8px 16px', background: '#10b981', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: '500' }}>
+                        <Package /> Add to Takeoff
+                      </button>
+                      <button onClick={clearMeasurements} style={{ padding: '8px 16px', background: '#ef4444', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>
+                        Clear
+                      </button>
+                    </>
+                  )}
+                  
+                  {counts.length > 0 && (
+                    <>
+                      <span style={{ fontSize: '14px', color: '#64748b' }}>
+                        Count: {counts.length}
+                      </span>
+                      <button onClick={addCountToTakeoff} style={{ padding: '8px 16px', background: '#10b981', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: '500' }}>
+                        <Package /> Add to Takeoff
+                      </button>
+                      <button onClick={clearCounts} style={{ padding: '8px 16px', background: '#ef4444', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>
+                        Clear
+                      </button>
+                    </>
+                  )}
+                </div>
+                
+                {/* Canvas */}
+                <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
+                  <canvas ref={canvasRef} width={1200} height={800} onMouseDown={handleCanvasMouseDown} onMouseMove={handleCanvasMouseMove} onMouseUp={handleCanvasMouseUp} style={{ width: '100%', height: '100%', cursor: tool === 'pan' ? 'grab' : tool === 'measure' ? 'crosshair' : tool === 'count' ? 'pointer' : 'default' }} />
+                </div>
+              </div>
+              
+              {/* Right Panel - Takeoff Sheet */}
+              <div style={{ width: '500px', background: 'white', borderLeft: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column' }}>
+                <div style={{ padding: '16px', borderBottom: '1px solid #e2e8f0' }}>
+                  <h2 style={{ margin: '0 0 8px 0', fontSize: '20px', fontWeight: '600' }}>Takeoff Sheet</h2>
+                  <p style={{ margin: 0, fontSize: '14px', color: '#64748b' }}>
+                    {drawing?.name} • Page {PAGE_NUMBER + 1}
+                  </p>
+                </div>
+                
+                <div style={{ flex: 1, overflow: 'auto', padding: '16px' }}>
+                  {takeoffItems.length === 0 ? (
+                    <div style={{ textAlign: 'center', padding: '40px 20px', color: '#94a3b8' }}>
+                      <Package style={{ margin: '0 auto 16px', opacity: 0.5, fontSize: '48px' }} />
+                      <p style={{ margin: 0 }}>No items yet. Use measurement tools to add materials.</p>
+                    </div>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                      {takeoffItems.map(item => (
+                        <div key={item.id} style={{ padding: '12px', border: '1px solid #e2e8f0', borderRadius: '8px', background: '#f8fafc' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                            <div style={{ flex: 1 }}>
+                              <div style={{ fontWeight: '500', fontSize: '14px', marginBottom: '4px' }}>
+                                {item.description || item.material?.description}
+                              </div>
+                              <div style={{ fontSize: '13px', color: '#64748b' }}>
+                                {item.part_number || item.material?.part_number} • {item.size || item.material?.size}
+                              </div>
+                              <div style={{ fontSize: '12px', color: '#6366f1', marginTop: '4px' }}>
+                                WBS: {item.wbs_name || item.wbs?.name}
+                              </div>
+                            </div>
+                            <button onClick={() => deleteTakeoffItem(item.id)} style={{ padding: '4px', background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer' }}>
+                              <Trash2 />
+                            </button>
+                          </div>
+                          
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '13px' }}>
+                            <div><span style={{ color: '#64748b' }}>Qty:</span> <strong>{item.quantity.toFixed(2)} {item.unit || item.material?.unit}</strong></div>
+                            <div><span style={{ color: '#64748b' }}>Mult:</span> <strong>{item.multiplier.toFixed(2)}</strong></div>
+                            <div><span style={{ color: '#64748b' }}>Price:</span> <strong>${(item.extendedPrice || 0).toFixed(2)}</strong></div>
+                            <div><span style={{ color: '#64748b' }}>Labor:</span> <strong>{(item.extendedLabor || 0).toFixed(2)} hrs</strong></div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                
+                {takeoffItems.length > 0 && (
+                  <div style={{ borderTop: '1px solid #e2e8f0', padding: '16px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px', fontSize: '15px' }}>
+                      <span style={{ color: '#64748b' }}>Total Material:</span>
+                      <strong style={{ fontSize: '18px', color: '#3b82f6' }}>${totals.materialCost.toFixed(2)}</strong>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px', fontSize: '15px' }}>
+                      <span style={{ color: '#64748b' }}>Total Labor:</span>
+                      <strong style={{ fontSize: '18px', color: '#10b981' }}>{totals.laborHours.toFixed(2)} hrs</strong>
+                    </div>
+                    
+                    <button onClick={generateRFQ} style={{ width: '100%', padding: '12px', background: '#3b82f6', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: '500', fontSize: '15px' }}>
+                      <FileText /> Generate RFQ
+                    </button>
+                  </div>
+                )}
+              </div>
+              
+              {/* Material Selection Modal */}
+              {showMaterialModal && (
+                <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+                  <div style={{ background: 'white', borderRadius: '8px', padding: '24px', maxWidth: '600px', width: '90%', maxHeight: '80vh', overflow: 'auto' }}>
+                    <h2 style={{ margin: '0 0 20px 0', fontSize: '20px', fontWeight: '600' }}>Add Material to Takeoff</h2>
+                    
+                    <div style={{ marginBottom: '16px' }}>
+                      <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: '500' }}>Select Material</label>
+                      <select value={selectedMaterial?.id || ''} onChange={(e) => setSelectedMaterial(materials.find(m => m.id === parseInt(e.target.value)))} style={{ width: '100%', padding: '10px', border: '1px solid #e2e8f0', borderRadius: '6px', fontSize: '14px' }}>
+                        <option value="">Choose material...</option>
+                        {materials.map(material => (
+                          <option key={material.id} value={material.id}>
+                            {material.part_number} - {material.description} ({material.size})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    
+                    <div style={{ marginBottom: '16px' }}>
+                      <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: '500' }}>WBS Category</label>
+                      <select value={selectedWBS?.id || ''} onChange={(e) => setSelectedWBS(wbsCategories.find(w => w.id === parseInt(e.target.value)))} style={{ width: '100%', padding: '10px', border: '1px solid #e2e8f0', borderRadius: '6px', fontSize: '14px' }}>
+                        <option value="">Choose WBS...</option>
+                        {wbsCategories.filter(w => w.parent_id !== null).map(wbs => (
+                          <option key={wbs.id} value={wbs.id}>{wbs.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                    
+                    <div style={{ marginBottom: '16px' }}>
+                      <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: '500' }}>
+                        Quantity {selectedMaterial && `(${selectedMaterial.unit})`}
+                      </label>
+                      <input type="number" value={quantity} onChange={(e) => setQuantity(parseFloat(e.target.value) || 0)} style={{ width: '100%', padding: '10px', border: '1px solid #e2e8f0', borderRadius: '6px', fontSize: '14px' }} min="0" step="0.01" />
+                    </div>
+                    
+                    <div style={{ marginBottom: '20px' }}>
+                      <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: '500' }}>Price Multiplier</label>
+                      <input type="number" value={multiplier} onChange={(e) => setMultiplier(parseFloat(e.target.value) || 1)} style={{ width: '100%', padding: '10px', border: '1px solid #e2e8f0', borderRadius: '6px', fontSize: '14px' }} min="0" step="0.01" />
+                    </div>
+                    
+                    {selectedMaterial && (
+                      <div style={{ background: '#f8fafc', padding: '12px', borderRadius: '6px', marginBottom: '20px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px', fontSize: '14px' }}>
+                          <span style={{ color: '#64748b' }}>Extended Price:</span>
+                          <strong>${((selectedMaterial.list_price * quantity * multiplier) || 0).toFixed(2)}</strong>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px' }}>
+                          <span style={{ color: '#64748b' }}>Extended Labor:</span>
+                          <strong>{((selectedMaterial.labor_units * quantity) || 0).toFixed(2)} hrs</strong>
+                        </div>
+                      </div>
+                    )}
+                    
+                    <div style={{ display: 'flex', gap: '12px' }}>
+                      <button onClick={() => { setShowMaterialModal(false); setSelectedMaterial(null); setSelectedWBS(null); setQuantity(0); setMultiplier(1.0); }} style={{ flex: 1, padding: '12px', background: 'white', border: '1px solid #e2e8f0', borderRadius: '6px', cursor: 'pointer', fontWeight: '500' }}>
+                        Cancel
+                      </button>
+                      <button onClick={saveTakeoffItem} style={{ flex: 1, padding: '12px', background: '#3b82f6', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: '500' }}>
+                        <Save /> Add to Takeoff
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        };
+
+        // Render the component
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<TakeoffMeasurementUI />);
+        {% endraw %}
+    </script>
+</body>
+</html>

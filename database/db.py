@@ -1,5 +1,6 @@
+# database/db.py - UPDATED VERSION
 """
-Database connection and initialization
+Database connection and initialization with Materials Database
 """
 import sqlite3
 from flask import g
@@ -20,9 +21,15 @@ def close_db(e=None):
         db.close()
 
 def init_db():
-    """Initialize database with schema"""
+    """Initialize database with complete schema including materials"""
     conn = sqlite3.connect(Config.DATABASE_PATH)
     c = conn.cursor()
+    
+    print("=" * 60)
+    print("Initializing Database Schema...")
+    print("=" * 60)
+    
+    # ============ Core Tables ============
     
     # Companies table
     c.execute('''CREATE TABLE IF NOT EXISTS companies (
@@ -32,6 +39,7 @@ def init_db():
         phone TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )''')
+    print("✓ Companies table")
     
     # Users table
     c.execute('''CREATE TABLE IF NOT EXISTS users (
@@ -43,6 +51,7 @@ def init_db():
         is_admin BOOLEAN DEFAULT 0,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )''')
+    print("✓ Users table")
     
     # User-Company relationship
     c.execute('''CREATE TABLE IF NOT EXISTS user_companies (
@@ -55,6 +64,7 @@ def init_db():
         FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE,
         UNIQUE(user_id, company_id)
     )''')
+    print("✓ User-Companies relationship table")
     
     # Projects table
     c.execute('''CREATE TABLE IF NOT EXISTS projects (
@@ -66,6 +76,7 @@ def init_db():
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE
     )''')
+    print("✓ Projects table")
     
     # WBS Categories table
     c.execute('''CREATE TABLE IF NOT EXISTS wbs_categories (
@@ -78,13 +89,7 @@ def init_db():
         FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
         FOREIGN KEY (parent_id) REFERENCES wbs_categories(id) ON DELETE CASCADE
     )''')
-    
-    # Add parent_id column if it doesn't exist (for existing databases)
-    try:
-        c.execute('ALTER TABLE wbs_categories ADD COLUMN parent_id INTEGER REFERENCES wbs_categories(id)')
-        print("✓ Added parent_id column to wbs_categories table")
-    except sqlite3.OperationalError:
-        pass  # Column already exists
+    print("✓ WBS Categories table")
     
     # Drawings table
     c.execute('''CREATE TABLE IF NOT EXISTS drawings (
@@ -97,6 +102,7 @@ def init_db():
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
     )''')
+    print("✓ Drawings table")
     
     # Custom Scales table
     c.execute('''CREATE TABLE IF NOT EXISTS custom_scales (
@@ -108,6 +114,7 @@ def init_db():
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
     )''')
+    print("✓ Custom Scales table")
     
     # Page Scales table
     c.execute('''CREATE TABLE IF NOT EXISTS page_scales (
@@ -122,6 +129,7 @@ def init_db():
         FOREIGN KEY (drawing_id) REFERENCES drawings(id) ON DELETE CASCADE,
         UNIQUE(drawing_id, page_number)
     )''')
+    print("✓ Page Scales table")
     
     # Scale Zones table
     c.execute('''CREATE TABLE IF NOT EXISTS scale_zones (
@@ -139,8 +147,9 @@ def init_db():
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (drawing_id) REFERENCES drawings(id) ON DELETE CASCADE
     )''')
+    print("✓ Scale Zones table")
     
-    # Detected items table
+    # Detected items table (legacy - for auto-detection)
     c.execute('''CREATE TABLE IF NOT EXISTS detected_items (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         drawing_id INTEGER NOT NULL,
@@ -153,33 +162,85 @@ def init_db():
         confidence REAL,
         verified BOOLEAN DEFAULT 0,
         notes TEXT,
-        FOREIGN KEY (drawing_id) REFERENCES drawings(id) ON DELETE CASCADE
+        wbs_category_id INTEGER,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (drawing_id) REFERENCES drawings(id) ON DELETE CASCADE,
+        FOREIGN KEY (wbs_category_id) REFERENCES wbs_categories(id)
     )''')
+    print("✓ Detected Items table")
     
-    # Add wbs_category_id column if it doesn't exist
-    try:
-        c.execute('ALTER TABLE detected_items ADD COLUMN wbs_category_id INTEGER REFERENCES wbs_categories(id)')
-        print("✓ Added wbs_category_id column to detected_items table")
-    except sqlite3.OperationalError:
-        pass  # Column already exists
+    # ============ Materials Database Tables ============
     
-    # Measurements table
-    c.execute('''CREATE TABLE IF NOT EXISTS measurements (
+    # Company Materials table
+    c.execute('''CREATE TABLE IF NOT EXISTS company_materials (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        company_id INTEGER NOT NULL,
+        part_number TEXT NOT NULL,
+        category TEXT NOT NULL,
+        description TEXT NOT NULL,
+        size TEXT,
+        unit TEXT NOT NULL,
+        list_price REAL NOT NULL,
+        labor_units REAL NOT NULL,
+        is_active BOOLEAN DEFAULT 1,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE,
+        UNIQUE(company_id, part_number)
+    )''')
+    print("✓ Company Materials table")
+    
+    # Material Takeoff Items table
+    c.execute('''CREATE TABLE IF NOT EXISTS takeoff_items (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         drawing_id INTEGER NOT NULL,
         page_number INTEGER NOT NULL,
-        measurement_type TEXT NOT NULL,
-        value REAL,
-        unit TEXT,
-        start_x REAL,
-        start_y REAL,
-        end_x REAL,
-        end_y REAL,
+        material_id INTEGER NOT NULL,
+        wbs_category_id INTEGER,
+        quantity REAL NOT NULL,
+        multiplier REAL DEFAULT 1.0,
+        measurement_type TEXT,
         notes TEXT,
-        FOREIGN KEY (drawing_id) REFERENCES drawings(id) ON DELETE CASCADE
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (drawing_id) REFERENCES drawings(id) ON DELETE CASCADE,
+        FOREIGN KEY (material_id) REFERENCES company_materials(id),
+        FOREIGN KEY (wbs_category_id) REFERENCES wbs_categories(id)
     )''')
+    print("✓ Takeoff Items table")
     
-    # Create default admin user if none exists
+    # RFQs table
+    c.execute('''CREATE TABLE IF NOT EXISTS rfqs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        project_id INTEGER NOT NULL,
+        rfq_number TEXT NOT NULL,
+        supplier_name TEXT,
+        supplier_email TEXT,
+        supplier_phone TEXT,
+        status TEXT DEFAULT 'draft',
+        notes TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        sent_at TIMESTAMP,
+        FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
+        UNIQUE(project_id, rfq_number)
+    )''')
+    print("✓ RFQs table")
+    
+    # RFQ Items table
+    c.execute('''CREATE TABLE IF NOT EXISTS rfq_items (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        rfq_id INTEGER NOT NULL,
+        material_id INTEGER NOT NULL,
+        quantity REAL NOT NULL,
+        unit TEXT NOT NULL,
+        notes TEXT,
+        FOREIGN KEY (rfq_id) REFERENCES rfqs(id) ON DELETE CASCADE,
+        FOREIGN KEY (material_id) REFERENCES company_materials(id)
+    )''')
+    print("✓ RFQ Items table")
+    
+    # ============ Create Default Admin User ============
+    
     admin_exists = c.execute('SELECT COUNT(*) FROM users WHERE is_admin = 1').fetchone()[0]
     if admin_exists == 0:
         admin_hash = generate_password_hash('admin123')
@@ -187,8 +248,44 @@ def init_db():
             'INSERT INTO users (email, password_hash, first_name, last_name, is_admin) VALUES (?, ?, ?, ?, ?)',
             ('admin@example.com', admin_hash, 'Admin', 'User', 1)
         )
-        print("✓ Default admin user created: admin@example.com / admin123")
+        print("✓ Default admin user created")
+        print("  Email: admin@example.com")
+        print("  Password: admin123")
     
     conn.commit()
     conn.close()
-    print("✓ Database initialized successfully")
+    
+    print("=" * 60)
+    print("Database initialization complete!")
+    print("=" * 60)
+
+def load_default_materials_for_company(company_id):
+    """Load default materials database when a new company is created"""
+    from database.materials_db import DEFAULT_MATERIALS
+    
+    conn = sqlite3.connect(Config.DATABASE_PATH)
+    c = conn.cursor()
+    
+    # Check if company already has materials
+    existing = c.execute(
+        'SELECT COUNT(*) FROM company_materials WHERE company_id = ?',
+        (company_id,)
+    ).fetchone()[0]
+    
+    if existing > 0:
+        print(f"Company {company_id} already has materials")
+        conn.close()
+        return
+    
+    # Insert default materials
+    for material in DEFAULT_MATERIALS:
+        c.execute('''
+            INSERT INTO company_materials 
+            (company_id, part_number, category, description, size, unit, list_price, labor_units)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (company_id,) + material)
+    
+    conn.commit()
+    conn.close()
+    
+    print(f"✓ Loaded {len(DEFAULT_MATERIALS)} default materials for company {company_id}")

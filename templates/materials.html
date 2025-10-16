@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Materials Database Manager</title>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <style>
+        body {
+            margin: 0;
+            font-family: system-ui, -apple-system, sans-serif;
+            background: #f8fafc;
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+    
+    <script type="text/babel">
+        {% raw %}
+        const { useState, useMemo } = React;
+
+        // Icon Components (replacing lucide-react)
+        const Plus = () => <span style={{ fontSize: '18px' }}>➕</span>;
+        const Edit2 = () => <span style={{ fontSize: '16px' }}>✏️</span>;
+        const Trash2 = () => <span style={{ fontSize: '16px' }}>🗑️</span>;
+        const Save = () => <span style={{ fontSize: '18px' }}>💾</span>;
+        const X = () => <span style={{ fontSize: '18px' }}>❌</span>;
+        const CheckCircle = () => <span style={{ fontSize: '20px' }}>✅</span>;
+        const AlertCircle = () => <span style={{ fontSize: '20px' }}>⚠️</span>;
+        const Search = () => <span style={{ fontSize: '18px' }}>🔍</span>;
+
+        // Mock initial data
+        const INITIAL_MATERIALS = [
+          { id: 1, partNumber: 'PVC04020', category: 'PVC Sch 40 Pipe', description: '2" Sch 40 PVC Plain End Pipe', size: '2"', unit: 'LF', listPrice: 3.25, laborUnits: 0.10, isActive: true },
+          { id: 2, partNumber: 'PVC04030', category: 'PVC Sch 40 Pipe', description: '3" Sch 40 PVC Plain End Pipe', size: '3"', unit: 'LF', listPrice: 6.85, laborUnits: 0.14, isActive: true },
+          { id: 3, partNumber: 'PVC00404', category: 'PVC DWV Fittings', description: '2" PVC DWV 90° Elbow', size: '2"', unit: 'EA', listPrice: 2.85, laborUnits: 0.17, isActive: true },
+          { id: 4, partNumber: 'PVC00424', category: 'PVC DWV Fittings', description: '2" PVC DWV Sanitary Tee', size: '2"', unit: 'EA', listPrice: 4.50, laborUnits: 0.22, isActive: true },
+        ];
+
+        const AdminMaterialsManager = () => {
+          const [materials, setMaterials] = useState(INITIAL_MATERIALS);
+          const [searchTerm, setSearchTerm] = useState('');
+          const [categoryFilter, setCategoryFilter] = useState('all');
+          const [showInactive, setShowInactive] = useState(false);
+          const [editingId, setEditingId] = useState(null);
+          const [showAddModal, setShowAddModal] = useState(false);
+          const [notification, setNotification] = useState(null);
+          
+          const [formData, setFormData] = useState({
+            partNumber: '',
+            category: '',
+            description: '',
+            size: '',
+            unit: 'EA',
+            listPrice: '',
+            laborUnits: ''
+          });
+          
+          const categories = useMemo(() => {
+            const cats = new Set(materials.map(m => m.category));
+            return ['all', ...Array.from(cats)];
+          }, [materials]);
+          
+          const filteredMaterials = useMemo(() => {
+            return materials.filter(material => {
+              const matchesSearch = 
+                material.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                material.partNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                material.size.includes(searchTerm);
+              
+              const matchesCategory = categoryFilter === 'all' || material.category === categoryFilter;
+              const matchesActive = showInactive || material.isActive;
+              
+              return matchesSearch && matchesCategory && matchesActive;
+            });
+          }, [materials, searchTerm, categoryFilter, showInactive]);
+          
+          const showNotification = (message, type = 'success') => {
+            setNotification({ message, type });
+            setTimeout(() => setNotification(null), 3000);
+          };
+          
+          const resetForm = () => {
+            setFormData({
+              partNumber: '',
+              category: '',
+              description: '',
+              size: '',
+              unit: 'EA',
+              listPrice: '',
+              laborUnits: ''
+            });
+            setEditingId(null);
+          };
+          
+          const handleEdit = (material) => {
+            setFormData({
+              partNumber: material.partNumber,
+              category: material.category,
+              description: material.description,
+              size: material.size,
+              unit: material.unit,
+              listPrice: material.listPrice.toString(),
+              laborUnits: material.laborUnits.toString()
+            });
+            setEditingId(material.id);
+            setShowAddModal(true);
+          };
+          
+          const handleSave = () => {
+            if (!formData.partNumber || !formData.category || !formData.description || 
+                !formData.unit || !formData.listPrice || !formData.laborUnits) {
+              showNotification('Please fill all required fields', 'error');
+              return;
+            }
+            
+            const materialData = {
+              ...formData,
+              listPrice: parseFloat(formData.listPrice),
+              laborUnits: parseFloat(formData.laborUnits)
+            };
+            
+            if (editingId) {
+              setMaterials(materials.map(m => 
+                m.id === editingId ? { ...m, ...materialData } : m
+              ));
+              showNotification('Material updated successfully');
+            } else {
+              const newMaterial = {
+                id: Math.max(...materials.map(m => m.id)) + 1,
+                ...materialData,
+                isActive: true
+              };
+              setMaterials([...materials, newMaterial]);
+              showNotification('Material added successfully');
+            }
+            
+            setShowAddModal(false);
+            resetForm();
+          };
+          
+          const handleDelete = (id) => {
+            if (confirm('Are you sure you want to deactivate this material?')) {
+              setMaterials(materials.map(m => 
+                m.id === id ? { ...m, isActive: false } : m
+              ));
+              showNotification('Material deactivated');
+            }
+          };
+          
+          const handleReactivate = (id) => {
+            setMaterials(materials.map(m => 
+              m.id === id ? { ...m, isActive: true } : m
+            ));
+            showNotification('Material reactivated');
+          };
+          
+          const exportToCSV = () => {
+            const headers = ['Part Number', 'Category', 'Description', 'Size', 'Unit', 'List Price', 'Labor Units', 'Active'];
+            const rows = materials.map(m => [
+              m.partNumber, m.category, m.description, m.size, m.unit,
+              m.listPrice.toFixed(2), m.laborUnits.toFixed(2), m.isActive ? 'Yes' : 'No'
+            ]);
+            
+            const csv = [headers, ...rows].map(row => row.join(',')).join('\n');
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'materials_database.csv';
+            a.click();
+          };
+          
+          return (
+            <div style={{ fontFamily: 'system-ui, -apple-system, sans-serif', maxWidth: '1600px', margin: '0 auto', padding: '20px' }}>
+              {notification && (
+                <div style={{ position: 'fixed', top: '20px', right: '20px', background: notification.type === 'success' ? '#10b981' : '#ef4444', color: 'white', padding: '12px 20px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 4px 12px rgba(0,0,0,0.15)', zIndex: 2000 }}>
+                  {notification.type === 'success' ? <CheckCircle /> : <AlertCircle />}
+                  {notification.message}
+                </div>
+              )}
+              
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+                <div>
+                  <h1 style={{ margin: '0 0 8px 0', fontSize: '28px', fontWeight: '600' }}>Materials Database</h1>
+                  <p style={{ margin: 0, color: '#64748b' }}>Manage company materials - Admin Only</p>
+                </div>
+                <div style={{ display: 'flex', gap: '12px' }}>
+                  <button onClick={exportToCSV} style={{ padding: '10px 20px', background: 'white', color: '#3b82f6', border: '1px solid #3b82f6', borderRadius: '6px', cursor: 'pointer', fontWeight: '500' }}>
+                    Export CSV
+                  </button>
+                  <button onClick={() => { resetForm(); setShowAddModal(true); }} style={{ padding: '10px 20px', background: '#3b82f6', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '500' }}>
+                    <Plus /> Add Material
+                  </button>
+                </div>
+              </div>
+              
+              <div style={{ background: 'white', padding: '20px', borderRadius: '8px', border: '1px solid #e2e8f0', marginBottom: '20px' }}>
+                <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
+                  <div style={{ flex: '1', minWidth: '250px', position: 'relative' }}>
+                    <div style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }}><Search /></div>
+                    <input type="text" placeholder="Search by description, part number, or size..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} style={{ width: '100%', padding: '10px 10px 10px 40px', border: '1px solid #e2e8f0', borderRadius: '6px', fontSize: '14px' }} />
+                  </div>
+                  
+                  <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} style={{ padding: '10px 16px', border: '1px solid #e2e8f0', borderRadius: '6px', fontSize: '14px', cursor: 'pointer', background: 'white' }}>
+                    {categories.map(cat => (
+                      <option key={cat} value={cat}>{cat === 'all' ? 'All Categories' : cat}</option>
+                    ))}
+                  </select>
+                  
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '14px' }}>
+                    <input type="checkbox" checked={showInactive} onChange={(e) => setShowInactive(e.target.checked)} style={{ cursor: 'pointer' }} />
+                    Show Inactive
+                  </label>
+                </div>
+                
+                <div style={{ marginTop: '12px', color: '#64748b', fontSize: '14px' }}>
+                  Showing {filteredMaterials.length} of {materials.length} materials
+                </div>
+              </div>
+              
+              <div style={{ background: 'white', borderRadius: '8px', border: '1px solid #e2e8f0', overflow: 'hidden' }}>
+                <div style={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
+                    <thead>
+                      <tr style={{ background: '#f8fafc', borderBottom: '2px solid #e2e8f0' }}>
+                        <th style={{ padding: '12px', textAlign: 'left', fontWeight: '600', color: '#475569' }}>Part No</th>
+                        <th style={{ padding: '12px', textAlign: 'left', fontWeight: '600', color: '#475569' }}>Category</th>
+                        <th style={{ padding: '12px', textAlign: 'left', fontWeight: '600', color: '#475569' }}>Description</th>
+                        <th style={{ padding: '12px', textAlign: 'center', fontWeight: '600', color: '#475569' }}>Size</th>
+                        <th style={{ padding: '12px', textAlign: 'center', fontWeight: '600', color: '#475569' }}>Unit</th>
+                        <th style={{ padding: '12px', textAlign: 'right', fontWeight: '600', color: '#475569' }}>List Price</th>
+                        <th style={{ padding: '12px', textAlign: 'right', fontWeight: '600', color: '#475569' }}>Labor Units</th>
+                        <th style={{ padding: '12px', textAlign: 'center', fontWeight: '600', color: '#475569' }}>Status</th>
+                        <th style={{ padding: '12px', textAlign: 'center', fontWeight: '600', color: '#475569' }}>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredMaterials.map(material => (
+                        <tr key={material.id} style={{ borderBottom: '1px solid #e2e8f0', background: !material.isActive ? '#f8fafc' : 'white', opacity: !material.isActive ? 0.6 : 1 }}>
+                          <td style={{ padding: '12px', color: '#64748b', fontFamily: 'monospace', fontSize: '13px' }}>{material.partNumber}</td>
+                          <td style={{ padding: '12px', fontSize: '13px', color: '#64748b' }}>{material.category}</td>
+                          <td style={{ padding: '12px' }}>{material.description}</td>
+                          <td style={{ padding: '12px', textAlign: 'center', fontWeight: '500' }}>{material.size}</td>
+                          <td style={{ padding: '12px', textAlign: 'center', color: '#64748b' }}>{material.unit}</td>
+                          <td style={{ padding: '12px', textAlign: 'right' }}>${material.listPrice.toFixed(2)}</td>
+                          <td style={{ padding: '12px', textAlign: 'right', color: '#64748b' }}>{material.laborUnits.toFixed(2)}</td>
+                          <td style={{ padding: '12px', textAlign: 'center' }}>
+                            <span style={{ padding: '4px 12px', borderRadius: '12px', fontSize: '12px', fontWeight: '500', background: material.isActive ? '#dcfce7' : '#fee2e2', color: material.isActive ? '#166534' : '#991b1b' }}>
+                              {material.isActive ? 'Active' : 'Inactive'}
+                            </span>
+                          </td>
+                          <td style={{ padding: '12px', textAlign: 'center' }}>
+                            <div style={{ display: 'flex', gap: '4px', justifyContent: 'center' }}>
+                              <button onClick={() => handleEdit(material)} style={{ padding: '6px', background: 'none', border: '1px solid #e2e8f0', borderRadius: '4px', cursor: 'pointer', color: '#3b82f6' }} title="Edit">
+                                <Edit2 />
+                              </button>
+                              {material.isActive ? (
+                                <button onClick={() => handleDelete(material.id)} style={{ padding: '6px', background: 'none', border: '1px solid #e2e8f0', borderRadius: '4px', cursor: 'pointer', color: '#ef4444' }} title="Deactivate">
+                                  <Trash2 />
+                                </button>
+                              ) : (
+                                <button onClick={() => handleReactivate(material.id)} style={{ padding: '6px 12px', background: '#10b981', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '12px' }} title="Reactivate">
+                                  Reactivate
+                                </button>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+              
+              {showAddModal && (
+                <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+                  <div style={{ background: 'white', borderRadius: '8px', padding: '24px', maxWidth: '600px', width: '90%', maxHeight: '90vh', overflow: 'auto' }}>
+                    <h2 style={{ margin: '0 0 20px 0', fontSize: '20px', fontWeight: '600' }}>
+                      {editingId ? 'Edit Material' : 'Add New Material'}
+                    </h2>
+                    
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                      <div style={{ gridColumn: '1 / -1' }}>
+                        <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: '500' }}>Part Number *</label>
+                        <input type="text" value={formData.partNumber} onChange={(e) => setFormData({...formData, partNumber: e.target.value})} style={{ width: '100%', padding: '10px', border: '1px solid #e2e8f0', borderRadius: '6px', fontSize: '14px' }} placeholder="e.g., PVC04020" />
+                      </div>
+                      
+                      <div style={{ gridColumn: '1 / -1' }}>
+                        <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: '500' }}>Category *</label>
+                        <input type="text" value={formData.category} onChange={(e) => setFormData({...formData, category: e.target.value})} style={{ width: '100%', padding: '10px', border: '1px solid #e2e8f0', borderRadius: '6px', fontSize: '14px' }} placeholder="e.g., PVC Sch 40 Pipe" />
+                      </div>
+                      
+                      <div style={{ gridColumn: '1 / -1' }}>
+                        <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: '500' }}>Description *</label>
+                        <input type="text" value={formData.description} onChange={(e) => setFormData({...formData, description: e.target.value})} style={{ width: '100%', padding: '10px', border: '1px solid #e2e8f0', borderRadius: '6px', fontSize: '14px' }} placeholder='e.g., 2" Sch 40 PVC Plain End Pipe' />
+                      </div>
+                      
+                      <div>
+                        <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: '500' }}>Size</label>
+                        <input type="text" value={formData.size} onChange={(e) => setFormData({...formData, size: e.target.value})} style={{ width: '100%', padding: '10px', border: '1px solid #e2e8f0', borderRadius: '6px', fontSize: '14px' }} placeholder='e.g., 2"' />
+                      </div>
+                      
+                      <div>
+                        <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: '500' }}>Unit *</label>
+                        <select value={formData.unit} onChange={(e) => setFormData({...formData, unit: e.target.value})} style={{ width: '100%', padding: '10px', border: '1px solid #e2e8f0', borderRadius: '6px', fontSize: '14px' }}>
+                          <option value="EA">EA - Each</option>
+                          <option value="LF">LF - Linear Feet</option>
+                          <option value="SF">SF - Square Feet</option>
+                          <option value="CY">CY - Cubic Yards</option>
+                          <option value="LB">LB - Pounds</option>
+                          <option value="LOT">LOT - Lot</option>
+                        </select>
+                      </div>
+                      
+                      <div>
+                        <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: '500' }}>List Price ($) *</label>
+                        <input type="number" value={formData.listPrice} onChange={(e) => setFormData({...formData, listPrice: e.target.value})} style={{ width: '100%', padding: '10px', border: '1px solid #e2e8f0', borderRadius: '6px', fontSize: '14px' }} placeholder="0.00" step="0.01" min="0" />
+                      </div>
+                      
+                      <div>
+                        <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: '500' }}>Labor Units (hrs) *</label>
+                        <input type="number" value={formData.laborUnits} onChange={(e) => setFormData({...formData, laborUnits: e.target.value})} style={{ width: '100%', padding: '10px', border: '1px solid #e2e8f0', borderRadius: '6px', fontSize: '14px' }} placeholder="0.00" step="0.01" min="0" />
+                      </div>
+                    </div>
+                    
+                    <div style={{ display: 'flex', gap: '12px', marginTop: '24px' }}>
+                      <button onClick={() => { setShowAddModal(false); resetForm(); }} style={{ flex: 1, padding: '12px', background: 'white', border: '1px solid #e2e8f0', borderRadius: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontWeight: '500' }}>
+                        <X /> Cancel
+                      </button>
+                      <button onClick={handleSave} style={{ flex: 1, padding: '12px', background: '#3b82f6', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontWeight: '500' }}>
+                        <Save /> {editingId ? 'Update' : 'Add'} Material
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        };
+
+        // Render the component
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<AdminMaterialsManager />);
+        {% endraw %}
+    </script>
+</body>
+</html>
